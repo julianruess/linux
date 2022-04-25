@@ -475,6 +475,8 @@ static inline unsigned int virtqueue_add_desc_split(struct virtqueue *vq,
 	return next;
 }
 
+
+int splitcounter = 0;
 static inline int virtqueue_add_split(struct virtqueue *_vq,
 				      struct scatterlist *sgs[],
 				      unsigned int total_sg,
@@ -484,7 +486,10 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 				      void *ctx,
 				      gfp_t gfp)
 {
-	struct vring_virtqueue *vq = to_vvq(_vq);
+	//printk("In virtqueue_add_split\n");
+	//out_sgs immer 1    in_sgs meistens 1 manchmal 2
+	//printk("out_sgs: %u in_sgs: %u\n", out_sgs, in_sgs);
+	struct vring_virtqueue *vq = to_vvq (_vq);
 	struct scatterlist *sg;
 	struct vring_desc *desc;
 	unsigned int i, n, avail, descs_used, prev, err_idx;
@@ -506,21 +511,35 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	BUG_ON(total_sg == 0);
 
 	head = vq->free_head;
+	
+	if(splitcounter < 1000 && strcmp(vq->vq.name, "control") == 0){
+		printk("vq_add_split free head: %d\n", head);
+	}
+	
+	splitcounter++;
+	
 
-	if (virtqueue_use_indirect(_vq, total_sg))
+	if (virtqueue_use_indirect(_vq, total_sg)){
+		//heavily used
+		//printk("virtqueue_use_indirect");
 		desc = alloc_indirect_split(_vq, total_sg, gfp);
+	}
 	else {
+		//printk("virtqueue_use_indirect: else");
 		desc = NULL;
 		WARN_ON_ONCE(total_sg > vq->split.vring.num && !vq->indirect);
 	}
 
 	if (desc) {
+		//heavily used
+		//printk("if(desc)");
 		/* Use a single buffer which doesn't continue */
 		indirect = true;
 		/* Set up rest to use this indirect table. */
 		i = 0;
 		descs_used = 1;
 	} else {
+		//printk("if(desc): else");
 		indirect = false;
 		desc = vq->split.vring.desc;
 		i = head;
@@ -542,6 +561,8 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	}
 
 	for (n = 0; n < out_sgs; n++) {
+	//heavily used
+	//printk("for (n = 0; n < out_sgs; n++) {");
 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
 			dma_addr_t addr = vring_map_one_sg(vq, sg, DMA_TO_DEVICE);
 			if (vring_mapping_error(vq, addr))
@@ -557,6 +578,8 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 		}
 	}
 	for (; n < (out_sgs + in_sgs); n++) {
+	//heavily used
+	//printk("for (; n < (out_sgs + in_sgs); n++) {");
 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
 			dma_addr_t addr = vring_map_one_sg(vq, sg, DMA_FROM_DEVICE);
 			if (vring_mapping_error(vq, addr))
@@ -580,6 +603,8 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 			~VRING_DESC_F_NEXT;
 
 	if (indirect) {
+		//heavily used
+		//printk("if (indirect) {");
 		/* Now that the indirect table is filled in, map it. */
 		dma_addr_t addr = vring_map_single(
 			vq, desc, total_sg * sizeof(struct vring_desc),
@@ -604,6 +629,8 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 		vq->free_head = i;
 
 	/* Store token and indirect buffer state. */
+	//heavily called
+	//printk("Store token and indirect buffer state.\n");
 	vq->split.desc_state[head].data = data;
 	if (indirect)
 		vq->split.desc_state[head].indir_desc = desc;
@@ -1170,6 +1197,7 @@ static inline int virtqueue_add_packed(struct virtqueue *_vq,
 				       void *ctx,
 				       gfp_t gfp)
 {
+	printk("In virtqueue_add_packed\n");
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	struct vring_packed_desc *desc;
 	struct scatterlist *sg;
@@ -1779,6 +1807,23 @@ err_ring:
 /*
  * Generic functions and exported symbols.
  */
+int jcounter = 0;
+int sgs_serialize(struct virtqueue *_vq,
+				struct scatterlist *sgs[],
+				unsigned int total_sg,
+				unsigned int out_sgs,
+				unsigned int in_sgs)
+{	if(jcounter < 10000){
+
+	//printk("Hello from serialize\n");
+	printk("Virtqueue: %s\n", _vq->name);
+	printk("Total sg: %d, out_sgs: %d, in_sgs: %d\n", total_sg, out_sgs, in_sgs);
+	
+	}
+	jcounter++;
+	
+	return 0;
+}
 
 static inline int virtqueue_add(struct virtqueue *_vq,
 				struct scatterlist *sgs[],
@@ -1790,12 +1835,18 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 				gfp_t gfp)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
+	//printk("vring_virtqueue: %s \n", vq->vq.name);
 
+	
+	sgs_serialize(_vq, sgs, total_sg, out_sgs, in_sgs);
+	
 	return vq->packed_ring ? virtqueue_add_packed(_vq, sgs, total_sg,
 					out_sgs, in_sgs, data, ctx, gfp) :
 				 virtqueue_add_split(_vq, sgs, total_sg,
 					out_sgs, in_sgs, data, ctx, gfp);
 }
+
+
 
 /**
  * virtqueue_add_sgs - expose buffers to other end

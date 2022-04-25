@@ -99,6 +99,8 @@ static int virtio_gpu_pci_quirk(struct drm_device *dev, struct virtio_device *vd
 
 static int virtio_gpu_probe(struct virtio_device *vdev)
 {
+	printk("virtio-gpu: In probe function!!\n");
+
 	struct drm_device *dev;
 	int ret;
 

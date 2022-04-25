@@ -34,6 +34,8 @@
 #include "virtgpu_drv.h"
 #include "virtgpu_trace.h"
 
+int j = 0;
+
 #define MAX_INLINE_CMD_SIZE   96
 #define MAX_INLINE_RESP_SIZE  24
 #define VBUFFER_SIZE          (sizeof(struct virtio_gpu_vbuffer) \
@@ -363,7 +365,23 @@ again:
 		}
 	}
 
+	if(j < 1000){
+		// printk("elemcnt: %d outcnt: %d incnt: %d vbuf_size: %d virtqueue_name: %s index: %d num_free: %d\n", elemcnt, outcnt, incnt, vbuf->size, vq->name, vq->index, vq->num_free);
+		// printk("sgs[0]_page_link %lu sgs[0]_offset %d sgs[0]_length %d sgs[0]_dma_addr %llu\n", sgs[0]->page_link, sgs[0]->offset, sgs[0]->length, sgs[0]->dma_address);
+		// printk("sgs[1]_page_link %lu sgs[1]_offset %d sgs[1]_length %d sgs[1]_dma_addr %llu\n", sgs[1]->page_link, sgs[1]->offset, sgs[1]->length, sgs[1]->dma_address);
+		// int k = 0;
+		// for (k = 0; k < vbuf->size; k++){
+		// 	printk("k: %d vbuf: %02X", k, vbuf->buf[k]);
+		// }
+
+		printk("Hello from virtio-gpu-driver");
+		
+	
+	}
+	//printk("virtio-gpu: In virtio_gpu_queue_ctrl_sgs before virtqueue_add\n");
+	
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
+	j++;
 	WARN_ON(ret);
 
 	trace_virtio_gpu_cmd_queue(vq, virtio_gpu_vbuf_ctrl_hdr(vbuf));
@@ -380,18 +398,21 @@ static int virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 					       struct virtio_gpu_vbuffer *vbuf,
 					       struct virtio_gpu_fence *fence)
 {
+	//printk("virtio-gpu: In virtio_gpu_queue_fenced_ctrl_buffer\n");
 	struct scatterlist *sgs[3], vcmd, vout, vresp;
 	struct sg_table *sgt = NULL;
 	int elemcnt = 0, outcnt = 0, incnt = 0, ret;
 
 	/* set up vcmd */
 	sg_init_one(&vcmd, vbuf->buf, vbuf->size);
+	//printk("virtio-gpu: vbuf_size: %d\n", vbuf->size);
 	elemcnt++;
 	sgs[outcnt] = &vcmd;
 	outcnt++;
 
 	/* set up vout */
 	if (vbuf->data_size) {
+		printk("virtio-gpu: In vbuf->data_size\n");
 		if (is_vmalloc_addr(vbuf->data_buf)) {
 			int sg_ents;
 			sgt = vmalloc_to_sgt(vbuf->data_buf, vbuf->data_size,
@@ -414,6 +435,8 @@ static int virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 
 	/* set up vresp */
 	if (vbuf->resp_size) {
+		//Heavily called
+		//printk("virtio-gpu: In vbuf->resp_size\n");
 		sg_init_one(&vresp, vbuf->resp_buf, vbuf->resp_size);
 		elemcnt++;
 		sgs[outcnt + incnt] = &vresp;
@@ -471,6 +494,7 @@ static void virtio_gpu_queue_cursor(struct virtio_gpu_device *vgdev,
 
 	spin_lock(&vgdev->cursorq.qlock);
 retry:
+	//printk("virtio-gpu: In virtio_gpu_queue_cursor before virtqueue_add\n");
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, 0, vbuf, GFP_ATOMIC);
 	if (ret == -ENOSPC) {
 		spin_unlock(&vgdev->cursorq.qlock);
@@ -556,6 +580,7 @@ void virtio_gpu_cmd_set_scanout(struct virtio_gpu_device *vgdev,
 				uint32_t width, uint32_t height,
 				uint32_t x, uint32_t y)
 {
+	printk("virtio-gpu: In virtio_gpu_cmd_set_scanout");
 	struct virtio_gpu_set_scanout *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
 
@@ -604,6 +629,11 @@ void virtio_gpu_cmd_transfer_to_host_2d(struct virtio_gpu_device *vgdev,
 					struct virtio_gpu_object_array *objs,
 					struct virtio_gpu_fence *fence)
 {
+	// if (fence == NULL){
+	// 	printk("virtio-gpu: In virtio_gpu_cmd_transfer_to_host_2d: fence is null\n");
+	// }
+	//heavily called
+	// printk("virtio-gpu: In virtio_gpu_cmd_transfer_to_host_2d\n");
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(objs->objs[0]);
 	struct virtio_gpu_transfer_to_host_2d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;

@@ -166,6 +166,8 @@ static void virtio_gpu_resource_flush(struct drm_plane *plane,
 static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 					    struct drm_atomic_state *state)
 {
+	// Wird oft aufgerufen
+	// printk("virtio-gpu: virtio_gpu_primary_plane_update");
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
 	struct drm_device *dev = plane->dev;
@@ -196,6 +198,8 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 
 	bo = gem_to_virtio_gpu_obj(plane->state->fb->obj[0]);
 	if (bo->dumb)
+		// heavily called
+		//printk("virtio-gpu: virtio_gpu_update_dumb_bo");
 		virtio_gpu_update_dumb_bo(vgdev, plane->state, &rect);
 
 	if (plane->state->fb != old_state->fb ||
@@ -204,6 +208,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 	    plane->state->src_x != old_state->src_x ||
 	    plane->state->src_y != old_state->src_y ||
 	    output->needs_modeset) {
+		printk("virtio-gpu: viele if conditions");
 		output->needs_modeset = false;
 		DRM_DEBUG("handle 0x%x, crtc %dx%d+%d+%d, src %dx%d+%d+%d\n",
 			  bo->hw_res_handle,

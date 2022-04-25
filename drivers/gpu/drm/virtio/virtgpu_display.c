@@ -84,6 +84,7 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 
 static void virtio_gpu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
+	printk("virtio-gpu: virtio_gpu_crtc_mode_set_nofb");
 	struct drm_device *dev = crtc->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
@@ -102,6 +103,7 @@ static void virtio_gpu_crtc_atomic_enable(struct drm_crtc *crtc,
 static void virtio_gpu_crtc_atomic_disable(struct drm_crtc *crtc,
 					   struct drm_atomic_state *state)
 {
+	printk("virtio-gpu: virtio_gpu_crtc_atomic_disable");
 	struct drm_device *dev = crtc->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
@@ -119,6 +121,8 @@ static int virtio_gpu_crtc_atomic_check(struct drm_crtc *crtc,
 static void virtio_gpu_crtc_atomic_flush(struct drm_crtc *crtc,
 					 struct drm_atomic_state *state)
 {
+	//Wird oft aufgerufen --> Endlosschleife
+	//printk("virtio-gpu: virtio_gpu_crtc_atomic_flush");
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
@@ -250,6 +254,7 @@ static const struct drm_connector_funcs virtio_gpu_connector_funcs = {
 
 static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 {
+	printk("virtio-gpu: vgdev_output_init");
 	struct drm_device *dev = vgdev->ddev;
 	struct virtio_gpu_output *output = vgdev->outputs + index;
 	struct drm_connector *connector = &output->conn;

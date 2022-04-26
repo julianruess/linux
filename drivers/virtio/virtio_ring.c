@@ -1835,10 +1835,11 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 				gfp_t gfp)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
+	printk("Pointer to vring_virtqueue: %p\n", vq);
 	//printk("vring_virtqueue: %s \n", vq->vq.name);
-
+	// Ist in vring_virtqueue noch Pointer auf ctrlq.vq vorhanden?
 	
-	sgs_serialize(_vq, sgs, total_sg, out_sgs, in_sgs);
+	//sgs_serialize(_vq, sgs, total_sg, out_sgs, in_sgs);
 	
 	return vq->packed_ring ? virtqueue_add_packed(_vq, sgs, total_sg,
 					out_sgs, in_sgs, data, ctx, gfp) :

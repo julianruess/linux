@@ -185,6 +185,7 @@ static void free_vbuf(struct virtio_gpu_device *vgdev,
 	kmem_cache_free(vgdev->vbufs, vbuf);
 }
 
+int lencounter = 0;
 static void reclaim_vbufs(struct virtqueue *vq, struct list_head *reclaim_list)
 {
 	struct virtio_gpu_vbuffer *vbuf;
@@ -192,6 +193,10 @@ static void reclaim_vbufs(struct virtqueue *vq, struct list_head *reclaim_list)
 	int freed = 0;
 
 	while ((vbuf = virtqueue_get_buf(vq, &len))) {
+		if(lencounter < 1000){
+			printk("len: %d \n", len);
+			lencounter++;
+		}
 		list_add_tail(&vbuf->list, reclaim_list);
 		freed++;
 	}
@@ -365,19 +370,19 @@ again:
 		}
 	}
 
-	if(j < 1000){
-		// printk("elemcnt: %d outcnt: %d incnt: %d vbuf_size: %d virtqueue_name: %s index: %d num_free: %d\n", elemcnt, outcnt, incnt, vbuf->size, vq->name, vq->index, vq->num_free);
-		// printk("sgs[0]_page_link %lu sgs[0]_offset %d sgs[0]_length %d sgs[0]_dma_addr %llu\n", sgs[0]->page_link, sgs[0]->offset, sgs[0]->length, sgs[0]->dma_address);
-		// printk("sgs[1]_page_link %lu sgs[1]_offset %d sgs[1]_length %d sgs[1]_dma_addr %llu\n", sgs[1]->page_link, sgs[1]->offset, sgs[1]->length, sgs[1]->dma_address);
-		// int k = 0;
-		// for (k = 0; k < vbuf->size; k++){
-		// 	printk("k: %d vbuf: %02X", k, vbuf->buf[k]);
-		// }
+	// if(j < 1000){
+	// 	// printk("elemcnt: %d outcnt: %d incnt: %d vbuf_size: %d virtqueue_name: %s index: %d num_free: %d\n", elemcnt, outcnt, incnt, vbuf->size, vq->name, vq->index, vq->num_free);
+	// 	// printk("sgs[0]_page_link %lu sgs[0]_offset %d sgs[0]_length %d sgs[0]_dma_addr %llu\n", sgs[0]->page_link, sgs[0]->offset, sgs[0]->length, sgs[0]->dma_address);
+	// 	// printk("sgs[1]_page_link %lu sgs[1]_offset %d sgs[1]_length %d sgs[1]_dma_addr %llu\n", sgs[1]->page_link, sgs[1]->offset, sgs[1]->length, sgs[1]->dma_address);
+	// 	// int k = 0;
+	// 	// for (k = 0; k < vbuf->size; k++){
+	// 	// 	printk("k: %d vbuf: %02X", k, vbuf->buf[k]);
+	// 	// }
 
-		printk("Hello from virtio-gpu-driver");
+	// 	printk("Hello from virtio-gpu-driver");
 		
 	
-	}
+	// }
 	//printk("virtio-gpu: In virtio_gpu_queue_ctrl_sgs before virtqueue_add\n");
 	
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
@@ -462,6 +467,7 @@ void virtio_gpu_notify(struct virtio_gpu_device *vgdev)
 
 	spin_lock(&vgdev->ctrlq.qlock);
 	atomic_set(&vgdev->pending_commands, 0);
+	//serialize
 	notify = virtqueue_kick_prepare(vgdev->ctrlq.vq);
 	spin_unlock(&vgdev->ctrlq.qlock);
 

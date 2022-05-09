@@ -27,7 +27,7 @@ static void virtinput_queue_evtbuf(struct virtio_input *vi,
 	struct scatterlist sg[1];
 
 	sg_init_one(sg, evtbuf, sizeof(*evtbuf));
-	printk("Hello from virtio-input 1");
+	//printk("Hello from virtio-input 1");
 	virtqueue_add_inbuf(vi->evt, sg, 1, evtbuf, GFP_ATOMIC);
 }
 
@@ -92,7 +92,7 @@ static int virtinput_send_status(struct virtio_input *vi,
 
 	spin_lock_irqsave(&vi->lock, flags);
 	if (vi->ready) {
-		printk("Hello from virtio-input 2");
+		//printk("Hello from virtio-input 2");
 		rc = virtqueue_add_outbuf(vi->sts, sg, 1, stsbuf, GFP_ATOMIC);
 		virtqueue_kick(vi->sts);
 	} else {

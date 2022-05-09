@@ -513,7 +513,7 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	head = vq->free_head;
 	
 	if(splitcounter < 1000 && strcmp(vq->vq.name, "control") == 0){
-		printk("vq_add_split free head: %d\n", head);
+		printk("virtqueue_add_split free head: %d\n", head);
 	}
 	
 	splitcounter++;
@@ -685,6 +685,7 @@ unmap_release:
 	return -ENOMEM;
 }
 
+int splitcounter2 = 0;
 static bool virtqueue_kick_prepare_split(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
@@ -703,6 +704,13 @@ static bool virtqueue_kick_prepare_split(struct virtqueue *_vq)
 	LAST_ADD_TIME_CHECK(vq);
 	LAST_ADD_TIME_INVALID(vq);
 
+
+	// if(splitcounter2 < 1000 && strcmp(vq->vq.name, "control") == 0){
+	// 	printk("In virtqueue_kick_prepare_split");
+	// }
+
+	splitcounter2++;
+	
 	if (vq->event) {
 		needs_kick = vring_need_event(virtio16_to_cpu(_vq->vdev,
 					vring_avail_event(&vq->split.vring)),
@@ -965,6 +973,12 @@ static struct virtqueue *vring_create_virtqueue_split(
 		dev_warn(&vdev->dev, "Bad virtqueue length %u\n", num);
 		return NULL;
 	}
+
+	if(strcmp(name, "control") == 0){
+		
+		printk("Hallo, ich erstelle die Split Virtqueue %s der Länge %u", name , num);
+	}
+	
 
 	/* TODO: allocate each queue chunk individually */
 	for (; num && vring_size(num, vring_align) > PAGE_SIZE; num /= 2) {
@@ -1807,13 +1821,59 @@ err_ring:
 /*
  * Generic functions and exported symbols.
  */
+
+int vring_virtqueue_serialize(struct vring_virtqueue *vq)
+{	
+	//unsigned int len;
+	//void *p = virtqueue_get_buf(&(vq->vq), &len);
+	//printk("len: %d\n",len);
+
+	void * p;
+	p = kmalloc(1000, GFP_ATOMIC);
+	printk("Pointer to kmalloc: %p", p);
+	kfree(p);
+
+	printk("serialize num: %u", vq->split.vring.num);
+	printk("serialize avail_idx %u \n",vq->split.vring.avail->idx);
+	printk("serialize used_idx %u \n",vq->split.vring.used->idx);
+	printk("serialize avail_idx mod 64 %u \n",vq->split.vring.avail->idx % 64);
+	printk("serialize used_idx mod 64 %u \n",vq->split.vring.used->idx % 64);
+
+
+	int i=0;
+	for(i=0; i<64; i++){
+		printk("serialize avail ring [%d]: %u\n", i, vq->split.vring.avail->ring[i]);
+		printk("serialize used ring [%d]: %u\n", i, vq->split.vring.used->ring[i].id);
+	}
+
+	i=0;
+	for(i=0; i<64; i++){
+		printk("serialize desc[%d]_addr: %llu \n", i ,vq->split.vring.desc[i].addr);
+		printk("serialize desc[%d]_len: %d \n", i, vq->split.vring.desc[i].len);
+		//printk("serialize ring [%d]: %u\n", vq->split.vring.avail->ring[12]);
+	}
+	//printk("serialize desc[0]_addr: %llu \n",vq->split.vring.desc[0].addr);
+	//printk("serialize desc[1]_addr: %llu \n",vq->split.vring.desc[1].addr);
+	
+	//printk("serialize desc_len: %d \n",vq->split.vring.desc->len);
+	//printk("serialize desc_flags: %u \n",vq->split.vring.desc->flags);
+	//printk("serialize desc_next: %u \n",vq->split.vring.desc->next);
+
+	
+	//printk("serialize avail_idx: %u \n",vq->split.vring.avail->idx);
+	//printk("serialize used_idx: %u \n",vq->split.vring.used->idx);
+
+	return 0;
+}
+
 int jcounter = 0;
 int sgs_serialize(struct virtqueue *_vq,
 				struct scatterlist *sgs[],
 				unsigned int total_sg,
 				unsigned int out_sgs,
 				unsigned int in_sgs)
-{	if(jcounter < 10000){
+{	
+	if(jcounter < 10000){
 
 	//printk("Hello from serialize\n");
 	printk("Virtqueue: %s\n", _vq->name);
@@ -1835,7 +1895,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 				gfp_t gfp)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
-	printk("Pointer to vring_virtqueue: %p\n", vq);
+	//printk("Pointer to vring_virtqueue: %p\n", vq);
 	//printk("vring_virtqueue: %s \n", vq->vq.name);
 	// Ist in vring_virtqueue noch Pointer auf ctrlq.vq vorhanden?
 	
@@ -1980,9 +2040,19 @@ EXPORT_SYMBOL_GPL(virtqueue_kick_prepare);
  *
  * Returns false if host notify failed or queue is broken, otherwise true.
  */
+
+int counter1 = 0;
 bool virtqueue_notify(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	if(strcmp(vq->vq.name, "control") == 0 && counter1 < 1000){
+		
+		//printk("Serialize ctrl_queue here \n");
+		vring_virtqueue_serialize(vq);
+		counter1++;
+	}
+	
 
 	if (unlikely(vq->broken))
 		return false;

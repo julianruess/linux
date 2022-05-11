@@ -198,6 +198,22 @@ struct vring_virtqueue {
 #endif
 };
 
+struct vring_serialize_desc_table {
+	//__virtio64 addr;
+	__virtio32 len;
+	__virtio16 flags;
+	__virtio16 next;
+	char data[128];
+};
+
+struct vring_serialize {
+	__virtio16 vring_avail_flags;
+	__virtio16 vring_avail_idx;
+	__virtio16 vring_used_flags;
+	__virtio16 vring_used_idx;
+	struct vring_serialize_desc_table table[64];
+};
+
 
 /*
  * Helpers.
@@ -1824,14 +1840,13 @@ err_ring:
 
 int vring_virtqueue_serialize(struct vring_virtqueue *vq)
 {	
-	//unsigned int len;
-	//void *p = virtqueue_get_buf(&(vq->vq), &len);
-	//printk("len: %d\n",len);
 
-	void * p;
-	p = kmalloc(1000, GFP_ATOMIC);
-	printk("Pointer to kmalloc: %p", p);
-	kfree(p);
+	struct vring_serialize *vring;
+	vring = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
+
+
+	printk("Pointer to kmalloc: %p", vring);
+	kfree(vring);
 
 	printk("serialize num: %u", vq->split.vring.num);
 	printk("serialize avail_idx %u \n",vq->split.vring.avail->idx);

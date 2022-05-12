@@ -14,6 +14,8 @@
 #include <linux/spinlock.h>
 #include <xen/xen.h>
 
+int unmaponesplitcounter = 0;
+
 #ifdef DEBUG
 /* For development, we want to crash whenever the ring is screwed. */
 #define BAD_RING(_vq, fmt, args...)				\
@@ -384,10 +386,14 @@ static int vring_mapping_error(const struct vring_virtqueue *vq,
 /*
  * Split ring specific functions - *_split().
  */
-
+int unmaponesplitindirectcounter = 0;
 static void vring_unmap_one_split_indirect(const struct vring_virtqueue *vq,
 					   struct vring_desc *desc)
 {
+	// if(unmaponesplitindirectcounter < 10000 && strcmp(vq->vq.name, "control") == 0){
+	// 	printk("unmapone_indirect");
+	// 	unmaponesplitindirectcounter++;
+	// }
 	u16 flags;
 
 	if (!vq->use_dma_api)
@@ -413,6 +419,11 @@ static void vring_unmap_one_split_indirect(const struct vring_virtqueue *vq,
 static unsigned int vring_unmap_one_split(const struct vring_virtqueue *vq,
 					  unsigned int i)
 {
+	// if(unmaponesplitcounter < 10000 && strcmp(vq->vq.name, "control") == 0){
+	// 	printk("unmapone");
+	// 	unmaponesplitcounter++;
+	// }
+	
 	struct vring_desc_extra *extra = vq->split.desc_extra;
 	u16 flags;
 
@@ -1843,7 +1854,72 @@ int vring_virtqueue_serialize(struct vring_virtqueue *vq)
 
 	struct vring_serialize *vring;
 	vring = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
+	//vring->table[0].len = 1;
+	int j = 0;
+	for(j=0; j<=63; j++){
+		vring->table[j].next = vq->split.vring.desc[j].next;
+		vring->table[j].len = vq->split.vring.desc[j].len;
+		vring->table[j].flags = vq->split.vring.desc[j].flags;
 
+		//dma_addr_t handle = dma_map_single(vring_dma_dev(vq),  vq->split.vring.desc[j].addr,  vq->split.vring.desc[j].len, DMA_FROM_DEVICE);
+		//printk("Handle: %p", handle);
+		void __iomem *regs = ioremap(vq->split.vring.desc[j].addr, vq->split.vring.desc[j].len);
+		memcpy(vring->table[j].data, regs, vq->split.vring.desc[j].len);
+		//pr_info("0xdead0000: %#x\n", readl(regs));
+
+		iounmap(regs);	
+		
+		
+		//memcpy(vring->table[j].data, handle, vq->split.vring.desc[j].len);
+		//dma_unmap_single(vring_dma_dev(vq), handle, vq->split.vring.desc[j].len, DMA_FROM_DEVICE);
+
+
+	}
+	printk("len: %d", vq->split.vring.desc[j].len);
+
+
+	int datacounter;
+	for (datacounter = 0; datacounter < vq->split.vring.desc[0].len; datacounter++)
+		{
+			printk("Data[%d]: %02X", datacounter, vring->table[0].data[datacounter]);
+		}
+
+	int datacounter2;
+	for (datacounter2 = 0; datacounter2 < vq->split.vring.desc[42].len; datacounter2++)
+		{
+			printk("Data42[%d]: %02X", datacounter2, vring->table[42].data[datacounter2]);
+		}
+	
+	for (datacounter2 = 0; datacounter2 < vq->split.vring.desc[4].len; datacounter2++)
+		{
+			printk("Data4[%d]: %02X", datacounter2, vring->table[4].data[datacounter2]);
+		}
+	for (datacounter2 = 0; datacounter2 < vq->split.vring.desc[5].len; datacounter2++)
+		{
+			printk("Data5[%d]: %02X", datacounter2, vring->table[5].data[datacounter2]);
+		}
+	for (datacounter2 = 0; datacounter2 < vq->split.vring.desc[6].len; datacounter2++)
+		{
+			printk("Data6[%d]: %02X", datacounter2, vring->table[6].data[datacounter2]);
+		}
+	for (datacounter2 = 0; datacounter2 < vq->split.vring.desc[7].len; datacounter2++)
+		{
+			printk("Data7[%d]: %02X", datacounter2, vring->table[7].data[datacounter2]);
+		}
+	for (datacounter2 = 0; datacounter2 < vq->split.vring.desc[8].len; datacounter2++)
+		{
+			printk("Data8[%d]: %02X", datacounter2, vring->table[8].data[datacounter2]);
+		}
+
+	printk("Data4 Length: %d", vring->table[4].len);
+	printk("Data4Original: %d", vq->split.vring.desc[4].len);
+
+	
+
+
+	printk("lol2: %u", vring->table[0].len);
+
+	printk("lol2: %u", vring->table[0].len);
 
 	printk("Pointer to kmalloc: %p", vring);
 	kfree(vring);
@@ -1863,7 +1939,7 @@ int vring_virtqueue_serialize(struct vring_virtqueue *vq)
 
 	i=0;
 	for(i=0; i<64; i++){
-		printk("serialize desc[%d]_addr: %llu \n", i ,vq->split.vring.desc[i].addr);
+		printk("serialize desc[%d]_addr: %p \n", i ,vq->split.vring.desc[i].addr);
 		printk("serialize desc[%d]_len: %d \n", i, vq->split.vring.desc[i].len);
 		//printk("serialize ring [%d]: %u\n", vq->split.vring.avail->ring[12]);
 	}
@@ -2061,7 +2137,7 @@ bool virtqueue_notify(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	if(strcmp(vq->vq.name, "control") == 0 && counter1 < 1000){
+	if(strcmp(vq->vq.name, "control") == 0 && counter1 < 100){
 		
 		//printk("Serialize ctrl_queue here \n");
 		vring_virtqueue_serialize(vq);

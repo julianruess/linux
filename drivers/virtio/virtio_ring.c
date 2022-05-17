@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <xen/xen.h>
 
+
 int unmaponesplitcounter = 0;
 struct vring_serialize *vs;
 
@@ -210,12 +211,16 @@ struct vring_serialize_desc_table {
 };
 
 struct vring_serialize {
+	unsigned int num;
 	__virtio16 vring_avail_flags;
 	__virtio16 vring_avail_idx;
 	__virtio16 vring_used_flags;
 	__virtio16 vring_used_idx;
 	struct vring_serialize_desc_table table[64];
 };
+
+int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize *vs);
+int vring_virtqueue_deserialize(struct vring_virtqueue *vq, struct vring_serialize *vs);
 
 
 /*
@@ -540,11 +545,11 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 
 	head = vq->free_head;
 	
-	if(splitcounter < 1000 && strcmp(vq->vq.name, "control") == 0){
-		printk("virtqueue_add_split free head: %d\n", head);
-	}
+	// if(splitcounter < 1000 && strcmp(vq->vq.name, "control") == 0){
+	// 	printk("virtqueue_add_split free head: %d\n", head);
+	// }
 	
-	splitcounter++;
+	// splitcounter++;
 	
 
 	if (virtqueue_use_indirect(_vq, total_sg)){
@@ -813,6 +818,13 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 					 void **ctx)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
+	
+	if(strcmp(vq->vq.name, "control")){
+		
+		//vring_virtqueue_serialize(vq, vs);
+		//vring_virtqueue_deserialize(vq,vs);
+	}
+	
 	void *ret;
 	unsigned int i;
 	u16 last_used;
@@ -1002,10 +1014,10 @@ static struct virtqueue *vring_create_virtqueue_split(
 		return NULL;
 	}
 
-	if(strcmp(name, "control") == 0){
+	// if(strcmp(name, "control") == 0){
 		
-		printk("Hallo, ich erstelle die Split Virtqueue %s der Länge %u", name , num);
-	}
+	// 	printk("Hallo, ich erstelle die Split Virtqueue %s der Länge %u", name , num);
+	// }
 	
 
 	/* TODO: allocate each queue chunk individually */
@@ -1239,7 +1251,7 @@ static inline int virtqueue_add_packed(struct virtqueue *_vq,
 				       void *ctx,
 				       gfp_t gfp)
 {
-	printk("In virtqueue_add_packed\n");
+	// printk("In virtqueue_add_packed\n");
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	struct vring_packed_desc *desc;
 	struct scatterlist *sg;
@@ -1849,24 +1861,48 @@ err_ring:
 /*
  * Generic functions and exported symbols.
  */
-
+int serializecounter = 0;
 int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize *vs)
 {	
 
 	//struct vring_serialize *vring_serialize;
 	//vs = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
 
+	vs->vring_avail_flags = vq->split.vring.avail->flags;
+	vs->vring_avail_idx = vq->split.vring.avail->idx;
+
+	vs->vring_used_flags = vq->split.vring.used->flags;
+	vs->vring_used_idx = vq->split.vring.used->idx;
+
+	vs->num = vq->split.vring.num;
+
 	int j = 0;
 	for(j=0; j < vq->split.vring.num; j++){
 		vs->table[j].next = vq->split.vring.desc[j].next;
 		vs->table[j].len = vq->split.vring.desc[j].len;
 		vs->table[j].flags = vq->split.vring.desc[j].flags;
+		//printk("lol");
 
-		void __iomem *handle = ioremap(vq->split.vring.desc[j].addr, vq->split.vring.desc[j].len);
-		memcpy(vs->table[j].data, handle, vq->split.vring.desc[j].len);
-		iounmap(handle);	
+		if(vq->split.vring.desc[j].len != 0){
+			// void __iomem *handle = ioremap(vq->split.vring.desc[j].addr, vq->split.vring.desc[j].len);
+			void * handle = phys_to_virt(vq->split.vring.desc[j].addr);
+			memcpy(vs->table[j].data, handle, vq->split.vring.desc[j].len);
+			//memcpy(handle, vs->table[j].data, vs->table[j].len);
+			//printk("Test1: %p", vs->table[j].data)
+			// iounmap(handle);
+		}
+		
+
+		//memcpy_fromio(handle, vs->table[j].data, vq->split.vring.desc[j].len);
+		
+		//memcpy_toio(volatile void __iomem * dst, const void * src, size_t count)
 	}
-	printk("len: %d", vq->split.vring.desc[j].len);
+	// printk("serialize_counter_before: %d", serializecounter);
+	// if((serializecounter % 20) == 0){
+	// 	printk("serialize_counter: %d", serializecounter);
+	// }
+	// serializecounter++;
+	//printk("len: %d", vq->split.vring.desc[j].len);
 
 
 	// int datacounter;
@@ -1902,8 +1938,8 @@ int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize
 	// 		printk("Data8[%d]: %02X", datacounter2, vring->table[8].data[datacounter2]);
 	// 	}
 
-	printk("Data4 Length: %d", vs->table[4].len);
-	printk("Data4Original: %d", vq->split.vring.desc[4].len);
+	// printk("Data4 Length: %d", vs->table[4].len);
+	// printk("Data4Original: %d", vq->split.vring.desc[4].len);
 
 	
 
@@ -1922,7 +1958,7 @@ int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize
 	// printk("serialize used_idx mod 64 %u \n",vq->split.vring.used->idx % 64);
 
 
-	// int i=0;
+	int i=0;
 	// for(i=0; i<64; i++){
 	// 	printk("serialize avail ring [%d]: %u\n", i, vq->split.vring.avail->ring[i]);
 	// 	printk("serialize used ring [%d]: %u\n", i, vq->split.vring.used->ring[i].id);
@@ -1931,7 +1967,7 @@ int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize
 	// i=0;
 	// for(i=0; i<64; i++){
 	// 	printk("serialize desc[%d]_addr: %p \n", i ,vq->split.vring.desc[i].addr);
-	// 	printk("serialize desc[%d]_len: %d \n", i, vq->split.vring.desc[i].len);
+	// 	// printk("serialize desc[%d]_len: %d \n", i, vq->split.vring.desc[i].len);
 	// 	//printk("serialize ring [%d]: %u\n", vq->split.vring.avail->ring[12]);
 	// }
 	//printk("serialize desc[0]_addr: %llu \n",vq->split.vring.desc[0].addr);
@@ -1948,6 +1984,37 @@ int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize
 	return 0;
 }
 
+int vring_virtqueue_deserialize(struct vring_virtqueue *vq, struct vring_serialize *vs){
+
+	vq->split.vring.avail->flags = vs->vring_avail_flags;
+	vq->split.vring.avail->idx = vs->vring_avail_idx;
+
+	vq->split.vring.used->flags = vs->vring_used_flags;
+	vq->split.vring.used->idx = vs->vring_used_idx;
+
+	vq->split.vring.num = vs->num;
+	
+	int j = 0;
+	for(j=0; j < vs->num; j++){
+		
+		vq->split.vring.desc[j].next = vs->table[j].next;
+		vq->split.vring.desc[j].len; vs->table[j].len; 
+		vq->split.vring.desc[j].flags = vs->table[j].flags;
+
+		//vq->split.vring.desc[j].addr = virt_to_phys(vs->table->data[j]);
+
+		// memcpy(vs->table[j].data, handle, vq->split.vring.desc[j].len);
+		// iounmap(handle);	
+	}
+	vs->table->len;
+	vs->table->flags;
+	vs->table->next;
+	vs->table->data;
+
+	return 0;
+
+}
+
 int jcounter = 0;
 int sgs_serialize(struct virtqueue *_vq,
 				struct scatterlist *sgs[],
@@ -1958,8 +2025,8 @@ int sgs_serialize(struct virtqueue *_vq,
 	if(jcounter < 10000){
 
 	//printk("Hello from serialize\n");
-	printk("Virtqueue: %s\n", _vq->name);
-	printk("Total sg: %d, out_sgs: %d, in_sgs: %d\n", total_sg, out_sgs, in_sgs);
+	// printk("Virtqueue: %s\n", _vq->name);
+	// printk("Total sg: %d, out_sgs: %d, in_sgs: %d\n", total_sg, out_sgs, in_sgs);
 	
 	}
 	jcounter++;
@@ -2128,11 +2195,13 @@ bool virtqueue_notify(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	if(strcmp(vq->vq.name, "control") == 0 && counter1 < 100){
+	if(strcmp(vq->vq.name, "control") == 0){
 		
 		//printk("Serialize ctrl_queue here \n");
+		// void __iomem *handle = ioremap(vq->split.vring.desc[0].addr, vq->split.vring.desc[0].len);
+		// iounmap(handle);
 		vring_virtqueue_serialize(vq, vs);
-		counter1++;
+		// counter1++;
 	}
 	
 
@@ -2373,10 +2442,6 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					const char *name)
 {
 	struct vring_virtqueue *vq;
-
-	if(strcmp(vq->vq.name, "control") == 0){
-		vs = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
-	}
 	
 	if (virtio_has_feature(vdev, VIRTIO_F_RING_PACKED))
 		return NULL;
@@ -2399,6 +2464,13 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	vq->event_triggered = false;
 	vq->num_added = 0;
 	vq->use_dma_api = vring_use_dma_api(vdev);
+
+	if(strcmp(vq->vq.name, "control") == 0){
+		// printk("Hier drin");
+		vs = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
+		
+	}
+
 #ifdef DEBUG
 	vq->in_use = false;
 	vq->last_add_time_valid = false;

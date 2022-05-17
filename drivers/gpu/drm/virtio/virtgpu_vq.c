@@ -86,6 +86,7 @@ void virtio_gpu_free_vbufs(struct virtio_gpu_device *vgdev)
 	vgdev->vbufs = NULL;
 }
 
+int vbufaddrcounter = 0;
 static struct virtio_gpu_vbuffer*
 virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 		    int size, int resp_size, void *resp_buf,
@@ -94,6 +95,14 @@ virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 	struct virtio_gpu_vbuffer *vbuf;
 
 	vbuf = kmem_cache_zalloc(vgdev->vbufs, GFP_KERNEL);
+	
+	if(vbufaddrcounter < 100){
+		printk("serialize_vbufaddr: %p", vbuf);
+		vbufaddrcounter++;
+	}
+	
+
+
 	if (!vbuf)
 		return ERR_PTR(-ENOMEM);
 
@@ -193,10 +202,10 @@ static void reclaim_vbufs(struct virtqueue *vq, struct list_head *reclaim_list)
 	int freed = 0;
 
 	while ((vbuf = virtqueue_get_buf(vq, &len))) {
-		if(lencounter < 1000){
-			printk("len: %d \n", len);
-			lencounter++;
-		}
+		// if(lencounter < 1000){
+		// 	printk("len: %d \n", len);
+		// 	lencounter++;
+		// }
 		list_add_tail(&vbuf->list, reclaim_list);
 		freed++;
 	}
@@ -417,7 +426,7 @@ static int virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 
 	/* set up vout */
 	if (vbuf->data_size) {
-		printk("virtio-gpu: In vbuf->data_size\n");
+		// printk("virtio-gpu: In vbuf->data_size\n");
 		if (is_vmalloc_addr(vbuf->data_buf)) {
 			int sg_ents;
 			sgt = vmalloc_to_sgt(vbuf->data_buf, vbuf->data_size,
@@ -586,7 +595,7 @@ void virtio_gpu_cmd_set_scanout(struct virtio_gpu_device *vgdev,
 				uint32_t width, uint32_t height,
 				uint32_t x, uint32_t y)
 {
-	printk("virtio-gpu: In virtio_gpu_cmd_set_scanout");
+	// printk("virtio-gpu: In virtio_gpu_cmd_set_scanout");
 	struct virtio_gpu_set_scanout *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
 

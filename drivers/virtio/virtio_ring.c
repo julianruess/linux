@@ -721,7 +721,15 @@ unmap_release:
 int splitcounter2 = 0;
 static bool virtqueue_kick_prepare_split(struct virtqueue *_vq)
 {
+	
+
 	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	if((strcmp(vq->vq.name, "events") == 0)){
+		
+		printk("virtqueue_name_in_virtqueue_kick_prepare_split: %s", vq->vq.name);
+	}
+
 	u16 new, old;
 	bool needs_kick;
 
@@ -2195,15 +2203,11 @@ bool virtqueue_notify(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	if(strcmp(vq->vq.name, "control") == 0){
+	if((strcmp(vq->vq.name, "events") == 0)) {
 		
-		//printk("Serialize ctrl_queue here \n");
-		// void __iomem *handle = ioremap(vq->split.vring.desc[0].addr, vq->split.vring.desc[0].len);
-		// iounmap(handle);
-		vring_virtqueue_serialize(vq, vs);
-		// counter1++;
+		printk("virtqueue_name_in_virtqueue_notfiy: %s", vq->vq.name);
 	}
-	
+
 
 	if (unlikely(vq->broken))
 		return false;
@@ -2231,8 +2235,25 @@ EXPORT_SYMBOL_GPL(virtqueue_notify);
  */
 bool virtqueue_kick(struct virtqueue *vq)
 {
-	if (virtqueue_kick_prepare(vq))
+	if((strcmp(vq->name, "events") == 0)) {
+		
+		printk("virtqueue_name_in_virtqueue_kick_events: %s", vq->name);
+	}
+
+	if((strcmp(vq->name, "status") == 0)) {
+		
+		printk("virtqueue_name_in_virtqueue_kick_status: %s", vq->name);
+	}
+
+	if (virtqueue_kick_prepare(vq)){
+		if((strcmp(vq->name, "status") == 0) || (strcmp(vq->name, "events") == 0) ) {
+			printk("before notify: %s", vq->name);
+		}
 		return virtqueue_notify(vq);
+	}
+	if((strcmp(vq->name, "status") == 0)) {
+			printk("before return true");
+	}
 	return true;
 }
 EXPORT_SYMBOL_GPL(virtqueue_kick);

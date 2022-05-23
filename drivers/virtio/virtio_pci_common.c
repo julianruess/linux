@@ -511,7 +511,8 @@ static void virtio_pci_release_dev(struct device *_d)
 
 static int virtio_pci_probe(struct pci_dev *pci_dev,
 			    const struct pci_device_id *id)
-{
+{	
+	printk("Huhu, hab ein virtio-PCI device erkannt");
 	struct virtio_pci_device *vp_dev, *reg_dev = NULL;
 	int rc;
 

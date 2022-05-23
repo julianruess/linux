@@ -46,8 +46,9 @@ static void virtinput_recv_events(struct virtqueue *vq)
 
 	spin_lock_irqsave(&vi->lock, flags);
 	if (vi->ready) {
+		//printk("Len1: %u", len);
 		while ((event = virtqueue_get_buf(vi->evt, &len)) != NULL) {
-			printk("Len: %u", len);
+			//printk("Len2: %u", len);
 			spin_unlock_irqrestore(&vi->lock, flags);
 			input_event(vi->idev,
 				    le16_to_cpu(event->type),
@@ -68,11 +69,14 @@ static void virtinput_recv_events(struct virtqueue *vq)
 static int virtinput_send_status(struct virtio_input *vi,
 				 u16 type, u16 code, s32 value)
 {
-	printk("virtinputsendstatus");
+	printk("virtinput_send_status()");
 	struct virtio_input_event *stsbuf;
+	struct virtio_input_event *buf;
+	unsigned int len; //new
 	struct scatterlist sg[1];
 	unsigned long flags;
 	int rc;
+
 
 	/*
 	 * Since 29cc309d8bf1 (HID: hid-multitouch: forward MSC_TIMESTAMP),
@@ -98,15 +102,25 @@ static int virtinput_send_status(struct virtio_input *vi,
 	stsbuf->value = cpu_to_le32(value);
 	sg_init_one(sg, stsbuf, sizeof(*stsbuf));
 
+	//printk("Before spinlock");
 	spin_lock_irqsave(&vi->lock, flags);
+	//printk("After spinlock");
 	if (vi->ready) {
-		//printk("Hello from virtio-input 2");
+		//printk("Before virtqueue_add_outbuf");
+		printk("Before virtqueue_add_outbuf() in virtinput_send_status(): stsbuf->code: %u, stsbuf->type: %u, stsbuf->value: %u", stsbuf->code, stsbuf->type, stsbuf->value);
+		printk("Before virtqueue_add_outbuf() in virtinput_send_status(): vi->sts->index: %u, vi->sts->num_free: %u", vi->sts->index, vi->sts->num_free);
 		rc = virtqueue_add_outbuf(vi->sts, sg, 1, stsbuf, GFP_ATOMIC);
+		printk("After virtqueue_add_outbuf() in virtinput_send_status(): vi->sts->index: %u, vi->sts->num_free: %u", vi->sts->index, vi->sts->num_free);
+		
+		virtqueue_get_buf(vi->sts, &len);
+
 		virtqueue_kick(vi->sts);
+		printk("After virtqueue_kick() in virtinput_send_status(): vi->sts->index: %u, vi->sts->num_free: %u", vi->sts->index, vi->sts->num_free);
 	} else {
 		rc = -ENODEV;
 	}
 	spin_unlock_irqrestore(&vi->lock, flags);
+	//printk("LenLOL: %u", len);
 
 	if (rc != 0)
 		kfree(stsbuf);
@@ -115,22 +129,26 @@ static int virtinput_send_status(struct virtio_input *vi,
 
 static void virtinput_recv_status(struct virtqueue *vq)
 {
-	printk("virtinputrecvstatus");
+	printk("virtinput_recv_status() CALLBACK-FUNKTION");
 	struct virtio_input *vi = vq->vdev->priv;
+	printk("In virtinput_recv_status(): vi->sts->index: %u, vi->sts->num_free: %u", vi->sts->index, vi->sts->num_free);
 	struct virtio_input_event *stsbuf;
 	unsigned long flags;
 	unsigned int len;
 
 	spin_lock_irqsave(&vi->lock, flags);
-	while ((stsbuf = virtqueue_get_buf(vi->sts, &len)) != NULL)
+	while ((stsbuf = virtqueue_get_buf(vi->sts, &len)) != NULL){
+		printk("stsbuf.value in virtinput_recv_status(): %u", stsbuf->value);
 		kfree(stsbuf);
+	}	
 	spin_unlock_irqrestore(&vi->lock, flags);
+	printk("After virtqueue_get_buf() in virtinput_recv_status(): vi->sts->index: %u, vi->sts->num_free: %u", vi->sts->index, vi->sts->num_free);
 }
 
 static int virtinput_status(struct input_dev *idev, unsigned int type,
 			    unsigned int code, int value)
 {
-	printk("virtinputstatus");
+	printk("virtinput_status()");
 	struct virtio_input *vi = input_get_drvdata(idev);
 
 	return virtinput_send_status(vi, type, code, value);
@@ -203,7 +221,7 @@ static int virtinput_init_vqs(struct virtio_input *vi)
 	struct virtqueue *vqs[2];
 	vq_callback_t *cbs[] = { virtinput_recv_events,
 				 virtinput_recv_status };
-	static const char * const names[] = { "events", "status" };
+	static const char * const names[] = { "events", "status"};
 	int err;
 
 	err = virtio_find_vqs(vi->vdev, 2, vqs, cbs, names, NULL);
@@ -213,6 +231,7 @@ static int virtinput_init_vqs(struct virtio_input *vi)
 	vi->sts = vqs[1];
 	printk("virtinputVirtqueue1: %s", vqs[0]->name);
 	printk("virtinputVirtqueue2: %s", vqs[1]->name);
+	//printk("virtinputVirtqueue3: %s", vqs[3]->name);
 	return 0;
 }
 

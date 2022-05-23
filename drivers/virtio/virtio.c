@@ -386,7 +386,7 @@ out:
 int register_virtio_device(struct virtio_device *dev)
 {
 	int err;
-
+	
 	dev->dev.bus = &virtio_bus;
 	device_initialize(&dev->dev);
 
@@ -397,7 +397,7 @@ int register_virtio_device(struct virtio_device *dev)
 
 	dev->index = err;
 	dev_set_name(&dev->dev, "virtio%u", dev->index);
-
+	
 	err = virtio_device_of_init(dev);
 	if (err)
 		goto out_ida_remove;

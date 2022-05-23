@@ -522,7 +522,15 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	//printk("In virtqueue_add_split\n");
 	//out_sgs immer 1    in_sgs meistens 1 manchmal 2
 	//printk("out_sgs: %u in_sgs: %u\n", out_sgs, in_sgs);
+	
+
 	struct vring_virtqueue *vq = to_vvq (_vq);
+	
+	if(strcmp(_vq->name, "status") == 0){
+		printk("Virtqueue: status. In virtqueue_add_split(). vq->split.vring.avail->idx: %u", vq->split.vring.avail->idx);
+		printk("Virtqueue: status. In virtqueue_add_split(). vq->split.vring.used->idx: %u", vq->split.vring.used->idx);
+	}
+
 	struct scatterlist *sg;
 	struct vring_desc *desc;
 	unsigned int i, n, avail, descs_used, prev, err_idx;
@@ -686,6 +694,11 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
+	if(strcmp(_vq->name, "status") == 0){
+		printk("Virtqueue: status. In virtqueue_add_split(). vq->split.vring.avail->idx: %u", vq->split.vring.avail->idx);
+		printk("Virtqueue: status. In virtqueue_add_split(). vq->split.vring.used->idx: %u", vq->split.vring.used->idx);
+	}
+
 	/* This is very unlikely, but theoretically possible.  Kick
 	 * just in case. */
 	if (unlikely(vq->num_added == (1 << 16) - 1))
@@ -725,9 +738,9 @@ static bool virtqueue_kick_prepare_split(struct virtqueue *_vq)
 
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	if((strcmp(vq->vq.name, "events") == 0)){
+	if((strcmp(vq->vq.name, "status") == 0)){
 		
-		printk("virtqueue_name_in_virtqueue_kick_prepare_split: %s", vq->vq.name);
+		printk("virtqueue name in virtqueue_kick_prepare_split(): %s", vq->vq.name);
 	}
 
 	u16 new, old;
@@ -827,10 +840,8 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	
-	if(strcmp(vq->vq.name, "control")){
-		
-		//vring_virtqueue_serialize(vq, vs);
-		//vring_virtqueue_deserialize(vq,vs);
+	if(strcmp(vq->vq.name, "status") == 0){
+		printk("Virtqueue: status. In virtqueue_get_buf_ctx_split()");
 	}
 	
 	void *ret;
@@ -840,11 +851,18 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 	START_USE(vq);
 
 	if (unlikely(vq->broken)) {
+		if(strcmp(vq->vq.name, "status") == 0){
+			printk("here");
+		}	
+		
 		END_USE(vq);
 		return NULL;
 	}
 
 	if (!more_used_split(vq)) {
+		if(strcmp(vq->vq.name, "status") == 0){
+			printk("here2");
+		}	
 		pr_debug("No more buffers in queue\n");
 		END_USE(vq);
 		return NULL;
@@ -852,7 +870,9 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 
 	/* Only get used array entries after they have been exposed by host. */
 	virtio_rmb(vq->weak_barriers);
-
+	if(strcmp(vq->vq.name, "status") == 0){
+			printk("here3");
+		}	
 	last_used = (vq->last_used_idx & (vq->split.vring.num - 1));
 	i = virtio32_to_cpu(_vq->vdev,
 			vq->split.vring.used->ring[last_used].id);
@@ -867,7 +887,9 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 		BAD_RING(vq, "id %u is not a head!\n", i);
 		return NULL;
 	}
-
+	if(strcmp(vq->vq.name, "status") == 0){
+			printk("here4");
+		}	
 	/* detach_buf_split clears data, so grab it now. */
 	ret = vq->split.desc_state[i].data;
 	detach_buf_split(vq, i, ctx);
@@ -879,7 +901,9 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 		virtio_store_mb(vq->weak_barriers,
 				&vring_used_event(&vq->split.vring),
 				cpu_to_virtio16(_vq->vdev, vq->last_used_idx));
-
+	if(strcmp(vq->vq.name, "status") == 0){
+			printk("here5");
+		}	
 	LAST_ADD_TIME_INVALID(vq);
 
 	END_USE(vq);
@@ -1022,10 +1046,10 @@ static struct virtqueue *vring_create_virtqueue_split(
 		return NULL;
 	}
 
-	// if(strcmp(name, "control") == 0){
+	if(strcmp(name, "events") == 0){
 		
-	// 	printk("Hallo, ich erstelle die Split Virtqueue %s der Länge %u", name , num);
-	// }
+		printk("Hallo, ich erstelle die Split Virtqueue %s der Länge %u", name , num);
+	}
 	
 
 	/* TODO: allocate each queue chunk individually */
@@ -2237,12 +2261,12 @@ bool virtqueue_kick(struct virtqueue *vq)
 {
 	if((strcmp(vq->name, "events") == 0)) {
 		
-		printk("virtqueue_name_in_virtqueue_kick_events: %s", vq->name);
+		printk("virtqueue name in virtqueue_kick(): %s", vq->name);
 	}
 
 	if((strcmp(vq->name, "status") == 0)) {
 		
-		printk("virtqueue_name_in_virtqueue_kick_status: %s", vq->name);
+		printk("virtqueue name in virtqueue_kick(): %s", vq->name);
 	}
 
 	if (virtqueue_kick_prepare(vq)){
@@ -2279,6 +2303,15 @@ void *virtqueue_get_buf_ctx(struct virtqueue *_vq, unsigned int *len,
 			    void **ctx)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	// if((strcmp(vq->vq.name, "events") == 0)){
+	// 	int i = 0;
+	// 	for(i=0; i<64; i++){
+	// 	//printk("serialize desc[%d]_addr: %p \n", i ,vq->split.vring.desc[i].addr);
+	// 	printk("serialize desc[%d]_len: %d \n", i, vq->split.vring.desc[i].len);
+	// 	//printk("serialize ring [%d]: %u\n", vq->split.vring.avail->ring[12]);
+	// 	}
+	// }
 
 	return vq->packed_ring ? virtqueue_get_buf_ctx_packed(_vq, len, ctx) :
 				 virtqueue_get_buf_ctx_split(_vq, len, ctx);

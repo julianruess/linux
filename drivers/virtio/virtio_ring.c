@@ -3,6 +3,7 @@
  *
  *  Copyright 2007 Rusty Russell IBM Corporation
  */
+#include "linux/kernel.h"
 #include <linux/virtio.h>
 #include <linux/virtio_ring.h>
 #include <linux/virtio_config.h>
@@ -1046,9 +1047,16 @@ static struct virtqueue *vring_create_virtqueue_split(
 		return NULL;
 	}
 
-	if(strcmp(name, "events") == 0){
+	if(strcmp(name, "serialize") == 0){
+		trace_printk("vring_create_virtqueue_split: serialize");
+		//printk("vring_create_virtqueue_split: serialize");
+		
+	}
+
+	if(strcmp(name, "status") == 0){
 		
 		printk("Hallo, ich erstelle die Split Virtqueue %s der Länge %u", name , num);
+		printk("vring_create_virtqueue_split: index: %u num: %u vring_align: %u, weak_barriers: %u, may_reduce_num: %u, context: %u, name: %s", index, num, vring_align, weak_barriers, may_reduce_num, context, name);
 	}
 	
 
@@ -1068,6 +1076,7 @@ static struct virtqueue *vring_create_virtqueue_split(
 
 	if (!queue) {
 		/* Try to get a single page. You are my only hope! */
+		
 		queue = vring_alloc_queue(vdev, vring_size(num, vring_align),
 					  &dma_addr, GFP_KERNEL|__GFP_ZERO);
 	}
@@ -1077,11 +1086,13 @@ static struct virtqueue *vring_create_virtqueue_split(
 	queue_size_in_bytes = vring_size(num, vring_align);
 	vring_init(&vring, num, queue, vring_align);
 
+
 	vq = __vring_new_virtqueue(index, vring, vdev, weak_barriers, context,
-				   notify, callback, name);
+			   notify, callback, name);
+		
 	if (!vq) {
 		vring_free_queue(vdev, queue_size_in_bytes, queue,
-				 dma_addr);
+			 dma_addr);
 		return NULL;
 	}
 
@@ -2047,6 +2058,45 @@ int vring_virtqueue_deserialize(struct vring_virtqueue *vq, struct vring_seriali
 
 }
 
+
+bool test_notify(struct virtqueue * vq){
+	return 1;
+}
+
+
+void test_callback(struct virtqueue * vq){
+	return;
+}
+
+struct virtqueue * virtqueue_create_serialize(struct virtio_device *vdev){
+	struct virtqueue * vq;
+	struct vring vring;
+	dma_addr_t ser_dma_addr;
+	void * queue;
+	unsigned int index = 1;
+	bool weak_barriers = 1;
+	const char name[] = "serialize";
+	//Ring wird allokiert und DMA gemappt!
+	queue = vring_alloc_queue(vdev, vring_size(64, 64), &ser_dma_addr, GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
+	printk("virtqueue_create_serialize: vring_alloc_queue() ausgeführt");
+	vring_init(&vring, 64, queue, 64);
+	printk("virtqueue_create_serialize: vring_init ausgeführt");
+	printk("vring.num: %u",vring.num);
+	
+	vq = __vring_new_virtqueue_ser(index, vring, vdev, weak_barriers, 0, test_notify, test_callback, name);
+	
+	printk("virtqueue_create_serialize(): %s", vq->name);
+
+	struct vring_virtqueue *vring_virtqueue = to_vvq(vq);
+
+	printk("virtqueue_create_serialize(): vring_virtqueue.vq.name: %s", vring_virtqueue->vq.name);
+	printk("virtqueue_create_serialize(): vring_virtqueue.split.vring.num: %u", vring_virtqueue->split.vring.num);
+	
+	
+	return vq;
+}
+EXPORT_SYMBOL_GPL(virtqueue_create_serialize);
+
 int jcounter = 0;
 int sgs_serialize(struct virtqueue *_vq,
 				struct scatterlist *sgs[],
@@ -2495,12 +2545,19 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					void (*callback)(struct virtqueue *),
 					const char *name)
 {
-	struct vring_virtqueue *vq;
-	
-	if (virtio_has_feature(vdev, VIRTIO_F_RING_PACKED))
-		return NULL;
 
-	vq = kmalloc(sizeof(*vq), GFP_KERNEL);
+	
+
+	struct vring_virtqueue *vq;
+
+	if(strcmp(name, "serialize") != 0){
+
+		if (virtio_has_feature(vdev, VIRTIO_F_RING_PACKED))
+			return NULL;	
+	}
+
+	vq = kmalloc(sizeof(*vq), GFP_KERNEL);	
+	
 	if (!vq)
 		return NULL;
 
@@ -2525,10 +2582,12 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 		
 	}
 
-#ifdef DEBUG
-	vq->in_use = false;
-	vq->last_add_time_valid = false;
-#endif
+	#ifdef DEBUG
+		vq->in_use = false;
+		vq->last_add_time_valid = false;
+	#endif
+
+	
 
 	vq->indirect = virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC) &&
 		!context;
@@ -2543,33 +2602,34 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	vq->split.vring = vring;
 	vq->split.avail_flags_shadow = 0;
 	vq->split.avail_idx_shadow = 0;
-
-	/* No callback?  Tell other side not to bother us. */
-	if (!callback) {
+		// printk("Hier drin");
+		/* No callback?  Tell other side not to bother us. */
+		if (!callback) {
 		vq->split.avail_flags_shadow |= VRING_AVAIL_F_NO_INTERRUPT;
 		if (!vq->event)
 			vq->split.vring.avail->flags = cpu_to_virtio16(vdev,
 					vq->split.avail_flags_shadow);
-	}
+		}
 
-	vq->split.desc_state = kmalloc_array(vring.num,
+		vq->split.desc_state = kmalloc_array(vring.num,
 			sizeof(struct vring_desc_state_split), GFP_KERNEL);
-	if (!vq->split.desc_state)
+		if (!vq->split.desc_state)
 		goto err_state;
 
-	vq->split.desc_extra = vring_alloc_desc_extra(vq, vring.num);
-	if (!vq->split.desc_extra)
+		vq->split.desc_extra = vring_alloc_desc_extra(vq, vring.num);
+		if (!vq->split.desc_extra)
 		goto err_extra;
 
 	/* Put everything in free lists. */
-	vq->free_head = 0;
-	memset(vq->split.desc_state, 0, vring.num *
+		vq->free_head = 0;
+		memset(vq->split.desc_state, 0, vring.num *
 			sizeof(struct vring_desc_state_split));
 
-	spin_lock(&vdev->vqs_list_lock);
-	list_add_tail(&vq->vq.list, &vdev->vqs);
-	spin_unlock(&vdev->vqs_list_lock);
-	return &vq->vq;
+		spin_lock(&vdev->vqs_list_lock);
+		list_add_tail(&vq->vq.list, &vdev->vqs);
+		spin_unlock(&vdev->vqs_list_lock);
+		return &vq->vq;
+		
 
 err_extra:
 	kfree(vq->split.desc_state);
@@ -2578,6 +2638,111 @@ err_state:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(__vring_new_virtqueue);
+
+struct virtqueue *__vring_new_virtqueue_ser(unsigned int index,
+					struct vring vring,
+					struct virtio_device *vdev,
+					bool weak_barriers,
+					bool context,
+					bool (*notify)(struct virtqueue *),
+					void (*callback)(struct virtqueue *),
+					const char *name)
+{
+
+	
+
+	struct vring_virtqueue *vq;
+
+	if(strcmp(name, "serialize") != 0){
+
+		if (virtio_has_feature(vdev, VIRTIO_F_RING_PACKED))
+			return NULL;	
+	}
+
+	vq = kmalloc(sizeof(*vq), GFP_KERNEL);	
+	
+	if (!vq)
+		return NULL;
+
+	vq->packed_ring = false;
+	vq->vq.callback = callback;
+	vq->vq.vdev = vdev;
+	vq->vq.name = name;
+	vq->vq.num_free = vring.num;
+	vq->vq.index = index;
+	vq->we_own_ring = false;
+	vq->notify = notify;
+	vq->weak_barriers = weak_barriers;
+	vq->broken = false;
+	vq->last_used_idx = 0;
+	vq->event_triggered = false;
+	vq->num_added = 0;
+	vq->use_dma_api = vring_use_dma_api(vdev);
+
+	if(strcmp(vq->vq.name, "control") == 0){
+		// printk("Hier drin");
+		vs = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
+		
+	}
+
+	#ifdef DEBUG
+		vq->in_use = false;
+		vq->last_add_time_valid = false;
+	#endif
+
+	
+
+	vq->indirect = virtio_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC) &&
+		!context;
+	vq->event = virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX);
+
+	if (virtio_has_feature(vdev, VIRTIO_F_ORDER_PLATFORM))
+		vq->weak_barriers = false;
+
+	vq->split.queue_dma_addr = 0;
+	vq->split.queue_size_in_bytes = 0;
+
+	vq->split.vring = vring;
+	vq->split.avail_flags_shadow = 0;
+	vq->split.avail_idx_shadow = 0;
+		// printk("Hier drin");
+		/* No callback?  Tell other side not to bother us. */
+		if (!callback) {
+		vq->split.avail_flags_shadow |= VRING_AVAIL_F_NO_INTERRUPT;
+		if (!vq->event)
+			vq->split.vring.avail->flags = cpu_to_virtio16(vdev,
+					vq->split.avail_flags_shadow);
+		}
+
+		vq->split.desc_state = kmalloc_array(vring.num,
+			sizeof(struct vring_desc_state_split), GFP_KERNEL);
+		if (!vq->split.desc_state)
+		goto err_state;
+
+		vq->split.desc_extra = vring_alloc_desc_extra(vq, vring.num);
+		if (!vq->split.desc_extra)
+		goto err_extra;
+
+	/* Put everything in free lists. */
+		vq->free_head = 0;
+		memset(vq->split.desc_state, 0, vring.num *
+			sizeof(struct vring_desc_state_split));
+
+		// spin_lock(&vdev->vqs_list_lock);
+		// list_add_tail(&vq->vq.list, &vdev->vqs);
+		// spin_unlock(&vdev->vqs_list_lock);
+		return &vq->vq;
+		
+
+err_extra:
+	kfree(vq->split.desc_state);
+err_state:
+	kfree(vq);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(__vring_new_virtqueue_ser);
+
+
 
 struct virtqueue *vring_create_virtqueue(
 	unsigned int index,

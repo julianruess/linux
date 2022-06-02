@@ -86,6 +86,16 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					void (*callback)(struct virtqueue *),
 					const char *name);
 
+struct virtqueue *__vring_new_virtqueue_ser(unsigned int index,
+					struct vring vring,
+					struct virtio_device *vdev,
+					bool weak_barriers,
+					bool ctx,
+					bool (*notify)(struct virtqueue *),
+					void (*callback)(struct virtqueue *),
+					const char *name);
+
+
 /*
  * Creates a virtqueue with a standard layout but a caller-allocated
  * ring.

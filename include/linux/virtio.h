@@ -34,6 +34,8 @@ struct virtqueue {
 	void *priv;
 };
 
+
+
 int virtqueue_add_outbuf(struct virtqueue *vq,
 			 struct scatterlist sg[], unsigned int num,
 			 void *data,
@@ -57,7 +59,7 @@ int virtqueue_add_sgs(struct virtqueue *vq,
 		      void *data,
 		      gfp_t gfp);
 
-struct virtqueue * virtqueue_create_serialize(struct virtio_device *vdev);
+struct virtqueue * virtqueue_create_serialize(struct virtio_device *vdev, struct virtqueue * vqorig);
 
 bool virtqueue_kick(struct virtqueue *vq);
 

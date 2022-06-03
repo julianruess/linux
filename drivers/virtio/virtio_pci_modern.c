@@ -257,7 +257,7 @@ static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq;
 	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names, ctx, desc);
-
+	//printk("vp_modern_find_vqs(): names[1]: %s", names[1]);
 	if (rc)
 		return rc;
 

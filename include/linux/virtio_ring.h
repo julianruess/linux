@@ -22,6 +22,8 @@
  * actually quite cheap.
  */
 
+
+
 static inline void virtio_mb(bool weak_barriers)
 {
 	if (weak_barriers)
@@ -94,6 +96,7 @@ struct virtqueue *__vring_new_virtqueue_ser(unsigned int index,
 					bool (*notify)(struct virtqueue *),
 					void (*callback)(struct virtqueue *),
 					const char *name);
+
 
 
 /*

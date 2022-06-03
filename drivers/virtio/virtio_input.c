@@ -129,6 +129,11 @@ static int virtinput_send_status(struct virtio_input *vi,
 
 static void virtinput_recv_status(struct virtqueue *vq)
 {
+
+	// struct virtqueue * vq;
+	// vq = virtqueue_create_serialize(struct virtio_device *vdev)
+
+
 	printk("virtinput_recv_status() CALLBACK-FUNKTION");
 	struct virtio_input *vi = vq->vdev->priv;
 	printk("In virtinput_recv_status(): vi->sts->index: %u, vi->sts->num_free: %u", vi->sts->index, vi->sts->num_free);
@@ -254,9 +259,7 @@ static void virtinput_fill_evt(struct virtio_input *vi)
 static int virtinput_probe(struct virtio_device *vdev)
 {
 	printk("virtinputprobe");
-	struct virtqueue * serialize;
-	printk("Before virtqueue_create_serialize()");
-	serialize = virtqueue_create_serialize(vdev);
+	
 	struct virtio_input *vi;
 	unsigned long flags;
 	size_t size;

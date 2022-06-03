@@ -2148,9 +2148,13 @@ int copy_to_shadow_vring(struct virtqueue * vq, struct shadow_vq_data_buf * data
 	
 	vvq->split.shadow_vring.avail->idx = vvq->split.vring.avail->idx;
 	vvq->split.shadow_vring.avail->flags = vvq->split.vring.avail->flags;
+	
+	
 	for(j=0; j < vvq->split.vring.num; j++){
 		
 		vvq->split.shadow_vring.avail->ring[j] = vvq->split.vring.avail->ring[j];
+
+		
 	}
 
 	// printk("source avail.idx: %u", source->avail->idx);
@@ -2185,8 +2189,8 @@ int copy_to_shadow_vring(struct virtqueue * vq, struct shadow_vq_data_buf * data
 			dma_addr_t addr = vring_map_one_sg(vvq, sg, DMA_TO_DEVICE);
 			vvq->split.shadow_vring.desc[j].addr = addr;
 			
-			printk("vvq->split.vring.desc[j].addr: %p", vvq->split.vring.desc[j].addr);
-			printk("vvq->split.shadow_vring.desc[j].addr: %p", vvq->split.shadow_vring.desc[j].addr);
+			printk("vvq->split.vring.desc[%u].addr: %p", j, vvq->split.vring.desc[j].addr);
+			printk("vvq->split.shadow_vring.desc[%u].addr: %p", j, vvq->split.shadow_vring.desc[j].addr);
 			
 		}
 
@@ -2411,6 +2415,7 @@ EXPORT_SYMBOL_GPL(virtqueue_notify);
  *
  * Returns false if kick failed, otherwise true.
  */
+ bool j = 0;
 bool virtqueue_kick(struct virtqueue *vq)
 {
 
@@ -2420,8 +2425,23 @@ bool virtqueue_kick(struct virtqueue *vq)
 
 	if (virtqueue_kick_prepare(vq)){
 		if((strcmp(vq->name, "status") == 0)) {
-			copy_to_shadow_vring(vq, shadow_vq_buf);
+		
+				printk("virtqueue_kick(): Before copy_to_shadow");
+				copy_to_shadow_vring(vq, shadow_vq_buf);	
+				//Jetzt mal vergleichen
+				printk("virtqueue_kick(): split.vring.avail->idx: %u", to_vvq(vq)->split.vring.avail->idx);
+				printk("virtqueue_kick(): split.shadow_vring.avail->idx: %u", to_vvq(vq)->split.shadow_vring.avail->idx);
+
+				printk("virtqueue_kick(): split.vring.avail->flags: %u", to_vvq(vq)->split.vring.avail->flags);
+				printk("virtqueue_kick(): split.shadow_vring.avail->flags: %u", to_vvq(vq)->split.shadow_vring.avail->flags);
+
+				printk("virtqueue_kick(): split.vring.avail->ring[0]: %u", to_vvq(vq)->split.vring.avail->ring[0]);
+				printk("virtqueue_kick(): split.shadow_vring.avail->ring[0]: %u", to_vvq(vq)->split.shadow_vring.avail->ring[0]);
+
+
 		}
+
+			
 		return virtqueue_notify(vq);
 	}
 	if((strcmp(vq->name, "status") == 0)) {
@@ -3006,9 +3026,7 @@ EXPORT_SYMBOL_GPL(virtio_break_device);
 //Gibt DMA Adresse der Desc-Tabke zurück
 dma_addr_t virtqueue_get_desc_addr(struct virtqueue *_vq)
 {
-	if(strcmp(_vq->name, "status") == 0){
-		printk("virtqueue_get_desc_addr(): Hallo, ich will die DMA-Adresse der Status queue");
-	}
+	
 	
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
@@ -3016,7 +3034,13 @@ dma_addr_t virtqueue_get_desc_addr(struct virtqueue *_vq)
 
 	if (vq->packed_ring)
 		return vq->packed.ring_dma_addr;
-
+	
+	if(strcmp(_vq->name, "status") == 0){
+		printk("virtqueue_get_desc_addr(): Hallo, ich will die DMA-Adresse der Status queue");
+		printk("virtqueue_get_desc_addr(): vq->split.queue_dma_addr: %p", vq->split.queue_dma_addr);
+		printk("virtqueue_get_desc_addr(): vq->split.shadow_queue_dma_addr: %p", vq->split.shadow_queue_dma_addr);
+		return vq->split.shadow_queue_dma_addr;
+	}
 	return vq->split.queue_dma_addr;
 }
 EXPORT_SYMBOL_GPL(virtqueue_get_desc_addr);
@@ -3030,6 +3054,13 @@ dma_addr_t virtqueue_get_avail_addr(struct virtqueue *_vq)
 	if (vq->packed_ring)
 		return vq->packed.driver_event_dma_addr;
 
+	if(strcmp(_vq->name, "status") == 0){
+		printk("virtqueue_get_avail_addr(): Hallo, ich will die avail-Adresse der Status queue");
+		return vq->split.shadow_queue_dma_addr +
+		((char *)vq->split.shadow_vring.avail - (char *)vq->split.shadow_vring.desc);
+		//UNTERE ZEILE BERECHNET LÄNGE VON DESC
+		//ENDPOSITION - STARTPOSITION = LÄNGE
+	}
 	return vq->split.queue_dma_addr +
 		((char *)vq->split.vring.avail - (char *)vq->split.vring.desc);
 }
@@ -3044,6 +3075,11 @@ dma_addr_t virtqueue_get_used_addr(struct virtqueue *_vq)
 	if (vq->packed_ring)
 		return vq->packed.device_event_dma_addr;
 
+	if(strcmp(_vq->name, "status") == 0){
+		printk("virtqueue_get_avail_addr(): Hallo, ich will die used-Adresse der Status queue");
+		return vq->split.shadow_queue_dma_addr +
+		((char *)vq->split.shadow_vring.used - (char *)vq->split.shadow_vring.desc);
+	}
 	return vq->split.queue_dma_addr +
 		((char *)vq->split.vring.used - (char *)vq->split.vring.desc);
 }

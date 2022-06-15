@@ -3,6 +3,7 @@
  *
  *  Copyright 2007 Rusty Russell IBM Corporation
  */
+#include "asm/string_64.h"
 #include "linux/dma-direction.h"
 #include "linux/kernel.h"
 #include "linux/printk.h"
@@ -72,9 +73,6 @@ struct vring_serialize *vs;
 #define LAST_ADD_TIME_CHECK(vq)
 #define LAST_ADD_TIME_INVALID(vq)
 #endif
-
-
-
 
 
 
@@ -241,6 +239,7 @@ struct vring_serialize {
 int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize *vs);
 int vring_virtqueue_deserialize(struct vring_virtqueue *vq, struct vring_serialize *vs);
 int copy_to_shadow_vring(struct virtqueue * vq, struct shadow_vq_data_buf * data_buf);
+int compare_vring(struct virtqueue * vq);
 
 /*
  * Helpers.
@@ -782,7 +781,7 @@ static bool virtqueue_kick_prepare_split(struct virtqueue *_vq)
 	// 	printk("In virtqueue_kick_prepare_split");
 	// }
 
-	splitcounter2++;
+	//splitcounter2++;
 	
 	if (vq->event) {
 		needs_kick = vring_need_event(virtio16_to_cpu(_vq->vdev,
@@ -794,6 +793,9 @@ static bool virtqueue_kick_prepare_split(struct virtqueue *_vq)
 						VRING_USED_F_NO_NOTIFY));
 	}
 	END_USE(vq);
+	if(strcmp(vq->vq.name, "status") == 0){
+		printk("needs_kick: %u", needs_kick);
+	}
 	return needs_kick;
 }
 
@@ -2143,12 +2145,13 @@ int copy_to_shadow_vring(struct virtqueue * vq, struct shadow_vq_data_buf * data
 	int j = 0;
 	struct vring_virtqueue * vvq = to_vvq(vq);
 
-	
+	//Copy num
 	vvq->split.shadow_vring.num = vvq->split.vring.num;
 	
+
+	//Avail ring  --> flags, idx, ring
 	vvq->split.shadow_vring.avail->idx = vvq->split.vring.avail->idx;
 	vvq->split.shadow_vring.avail->flags = vvq->split.vring.avail->flags;
-	
 	
 	for(j=0; j < vvq->split.vring.num; j++){
 		
@@ -2157,16 +2160,11 @@ int copy_to_shadow_vring(struct virtqueue * vq, struct shadow_vq_data_buf * data
 		
 	}
 
-	// printk("source avail.idx: %u", source->avail->idx);
-	// printk("source dest.idx: %u", dest->avail->idx);
-	// printk("ring[0]: %u", source->avail->ring[0]);
-	// printk("ring[0]: %u", dest->avail->ring[0]);
-	// printk("ring[1]: %u", source->avail->ring[1]);
-	// printk("ring[1]: %u", dest->avail->ring[1]);
+
+	//Used ring --> flags, idx, ring 
 
 	vvq->split.shadow_vring.used->idx = vvq->split.vring.used->idx;
 	vvq->split.shadow_vring.used->flags = vvq->split.vring.used->flags;
-
 
 	for(j=0; j < vvq->split.vring.num; j++){
 		
@@ -2174,6 +2172,8 @@ int copy_to_shadow_vring(struct virtqueue * vq, struct shadow_vq_data_buf * data
 	}
 
 	
+	// Descriptor table --> addr, flags, len, next
+
 	for(j=0; j <  vvq->split.vring.num; j++){
 
 		vvq->split.shadow_vring.desc[j].len = vvq->split.vring.desc[j].len;
@@ -2184,25 +2184,70 @@ int copy_to_shadow_vring(struct virtqueue * vq, struct shadow_vq_data_buf * data
 			
 			struct scatterlist sg[1];
 			void * handle = phys_to_virt(vvq->split.vring.desc[j].addr);
+			printk("Before memcpy");
 			memcpy(data_buf[j].data, handle, vvq->split.vring.desc[j].len);
+			
+			printk("vvq->split.vring.desc[j].len: %u", vvq->split.vring.desc[j].len);
+			printk("data_buf[%u]: %s", j, data_buf[j].data);
+			printk("data_buf[1]: %s", data_buf[1].data);
+			printk("data_buf[0][0]: %c", data_buf[0].data[0]);
+			printk("data_buf[0][1]: %c", data_buf[0].data[1]);
+			printk("data_buf[0][2]: %c", data_buf[0].data[2]);
+			printk("data_buf[1][0]: %c", data_buf[1].data[0]);
+			printk("data_buf[1][1]: %c", data_buf[1].data[1]);
+			printk("data_buf[1][2]: %c", data_buf[1].data[2]);
+			
+
 			sg_init_one(sg, data_buf[j].data, vvq->split.shadow_vring.desc[j].len);
 			dma_addr_t addr = vring_map_one_sg(vvq, sg, DMA_TO_DEVICE);
 			vvq->split.shadow_vring.desc[j].addr = addr;
+
 			
+			printk("vvq->split.vring.desc[%u].len: %u", j, vvq->split.vring.desc[j].len);
 			printk("vvq->split.vring.desc[%u].addr: %p", j, vvq->split.vring.desc[j].addr);
 			printk("vvq->split.shadow_vring.desc[%u].addr: %p", j, vvq->split.shadow_vring.desc[j].addr);
+			printk("vvq->split.desc_extra[%u].addr: %p", j, vvq->split.desc_extra[j].addr);
 			
 		}
 
 		
-	}	
+	}
 	
-	// printk("copy_to_shadow_vring(): dest[0].len: %u", dest->desc[0].len);
+	int compare = compare_vring(vq);	
+	
+	printk("compare: %u", compare);
 	// printk("copy_to_shadow_vring(): dest[1].len: %u", dest->desc[1].len);
 	// printk("copy_to_shadow_vring(): dest[2].len: %u", dest->desc[2].len);
 
 	printk("copy_to_shadow_vring(): copy_to_shadow_vring: end");
 	return 0;
+}
+
+int compare_vring(struct virtqueue * vq){
+	struct vring_virtqueue * vvq = to_vvq(vq);
+	int j = 0;
+
+
+	for(j=0; j < vvq->split.vring.num; j++){
+		void * handle = phys_to_virt(vvq->split.vring.desc[j].addr);
+		void * shadow_handle = phys_to_virt(vvq->split.shadow_vring.desc[j].addr);
+
+		int result = memcmp(handle, shadow_handle, vvq->split.vring.desc[j].len);
+		if(result != 0){
+			return 0;
+		}
+		
+		if(vvq->split.vring.avail->ring[j] != vvq->split.shadow_vring.avail->ring[j]){
+			return 0;
+		}
+	
+
+
+	}
+
+	return 1;
+	
+
 }
 
 int jcounter = 0;
@@ -2421,6 +2466,7 @@ bool virtqueue_kick(struct virtqueue *vq)
 
 	if((strcmp(vq->name, "status") == 0)) {
 		printk("virtqueue name in virtqueue_kick(): %s", vq->name);
+		copy_to_shadow_vring(vq, shadow_vq_buf);	
 	}
 
 	if (virtqueue_kick_prepare(vq)){
@@ -2441,7 +2487,6 @@ bool virtqueue_kick(struct virtqueue *vq)
 
 		}
 
-			
 		return virtqueue_notify(vq);
 	}
 	if((strcmp(vq->name, "status") == 0)) {
@@ -2695,11 +2740,11 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	vq->num_added = 0;
 	vq->use_dma_api = vring_use_dma_api(vdev);
 
-	if(strcmp(vq->vq.name, "control") == 0){
-		// printk("Hier drin");
-		vs = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
+	// if(strcmp(vq->vq.name, "control") == 0){
+	// 	// printk("Hier drin");
+	// 	vs = kmalloc(sizeof(struct vring_serialize), GFP_KERNEL);
 		
-	}
+	// }
 
 	#ifdef DEBUG
 		vq->in_use = false;
@@ -3027,7 +3072,6 @@ EXPORT_SYMBOL_GPL(virtio_break_device);
 dma_addr_t virtqueue_get_desc_addr(struct virtqueue *_vq)
 {
 	
-	
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
 	BUG_ON(!vq->we_own_ring);
@@ -3056,6 +3100,8 @@ dma_addr_t virtqueue_get_avail_addr(struct virtqueue *_vq)
 
 	if(strcmp(_vq->name, "status") == 0){
 		printk("virtqueue_get_avail_addr(): Hallo, ich will die avail-Adresse der Status queue");
+		printk("virtqueue_get_avail_addr(): avail_addr: %p", vq->split.queue_dma_addr + ((char *)vq->split.vring.avail - (char *)vq->split.vring.desc));
+		printk("virtqueue_get_shadow_avail_addr(): shadow_avail_addr: %p", vq->split.shadow_queue_dma_addr + ((char *)vq->split.shadow_vring.avail - (char *)vq->split.shadow_vring.desc));
 		return vq->split.shadow_queue_dma_addr +
 		((char *)vq->split.shadow_vring.avail - (char *)vq->split.shadow_vring.desc);
 		//UNTERE ZEILE BERECHNET LÄNGE VON DESC
@@ -3076,7 +3122,9 @@ dma_addr_t virtqueue_get_used_addr(struct virtqueue *_vq)
 		return vq->packed.device_event_dma_addr;
 
 	if(strcmp(_vq->name, "status") == 0){
-		printk("virtqueue_get_avail_addr(): Hallo, ich will die used-Adresse der Status queue");
+		printk("virtqueue_get_used_addr(): Hallo, ich will die used-Adresse der Status queue");
+		printk("virtqueue_get_used_addr(): used_addr: %p", vq->split.queue_dma_addr + ((char *)vq->split.vring.used - (char *)vq->split.vring.desc));
+		printk("virtqueue_get_shadow_used_addr(): shadow_used_addr: %p", vq->split.shadow_queue_dma_addr +((char *)vq->split.shadow_vring.used - (char *)vq->split.shadow_vring.desc));
 		return vq->split.shadow_queue_dma_addr +
 		((char *)vq->split.shadow_vring.used - (char *)vq->split.shadow_vring.desc);
 	}

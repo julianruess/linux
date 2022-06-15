@@ -199,7 +199,6 @@ static inline void vring_init(struct vring *vr, unsigned int num, void *p,
 	vr->avail = (struct vring_avail *)((char *)p + num * sizeof(struct vring_desc));
 	vr->used = (void *)(((uintptr_t)&vr->avail->ring[num] + sizeof(__virtio16)
 		+ align-1) & ~(align - 1));
-
 	//ENDE DMA MAPPING
 }
 

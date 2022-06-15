@@ -3,7 +3,7 @@
  *
  *  Copyright 2007 Rusty Russell IBM Corporation
  */
-#include "asm/string_64.h"
+//#include "asm/string_64.h"
 #include "linux/dma-direction.h"
 #include "linux/kernel.h"
 #include "linux/printk.h"

@@ -2200,7 +2200,7 @@ void copy_to_shadow_vring(struct virtqueue * vq){
 	// printk("copy_to_shadow_vring(): dest[2].len: %u", dest->desc[2].len);
 
 	//printk("copy_to_shadow_vring(): copy_to_shadow_vring: end");
-	return 0;
+	//return 0;
 }
 EXPORT_SYMBOL_GPL(copy_to_shadow_vring);
 
@@ -2263,7 +2263,7 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 
 	//trace_printk("vvq->split.vring.used->idx: %d",vvq->split.shadow_vring.used->idx);
 	
-	return 0;
+	//return 0;
 }
 
 void copy_avail_idx_to_shadow(struct virtqueue* vq){

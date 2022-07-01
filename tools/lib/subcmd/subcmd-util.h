@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SUBCMD_UTIL_H
 #define __SUBCMD_UTIL_H
 
@@ -47,19 +46,18 @@ static NORETURN inline void die(const char *err, ...)
 		} \
 	} while(0)
 
-static inline void *xrealloc(void *ptr, size_t size)
-{
-	void *ret = realloc(ptr, size);
-	if (!ret && !size)
-		ret = realloc(ptr, 1);
-	if (!ret) {
-		ret = realloc(ptr, size);
-		if (!ret && !size)
-			ret = realloc(ptr, 1);
-		if (!ret)
-			die("Out of memory, realloc failed");
-	}
-	return ret;
+
+static inline void *xrealloc(void *ptr, size_t size)                                                                                                                                  
+{                                                                                                                                                                                     
+        void *ret = realloc(ptr, size);                                                                                                                                               
+        if (!size)                                                                                                                                                            
+                return ret;
+        if (!ret) {                                                                                                                                                                   
+                ret = realloc(ptr, size);                                                                                                                                             
+                if (!ret)                                                                                                                                                             
+                        die("Out of memory, realloc failed");                                                                                                                         
+        }                                                                                                                                                                             
+        return ret;                                                                                                                                                                   
 }
 
 #define astrcatf(out, fmt, ...)						\

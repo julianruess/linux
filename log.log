@@ -1,0 +1,41 @@
+  DESCEND objtool
+  DESCEND bpf/resolve_btfids
+  CALL    scripts/atomic/check-atomics.sh
+  CALL    scripts/checksyscalls.sh
+  CHK     include/generated/compile.h
+  CC      drivers/connector/cn_queue.o
+  CC      drivers/base/power/sysfs.o
+  CC      drivers/virtio/virtio_ring.o
+  AR      drivers/block/rnbd/built-in.a
+make[1]: *** [scripts/Makefile.build:540: kernel/locking] Interrupt
+make[3]: *** [scripts/Makefile.build:277: drivers/base/power/sysfs.o] Interrupt
+make[2]: *** [scripts/Makefile.build:277: drivers/virtio/virtio_ring.o] Interrupt
+make[2]: *** [scripts/Makefile.build:540: drivers/base/power] Interrupt
+make[2]: *** [scripts/Makefile.build:277: arch/x86/kernel/io_delay.o] Interrupt
+make[1]: *** [scripts/Makefile.build:540: drivers/virtio] Interrupt
+make[1]: *** [scripts/Makefile.build:540: drivers/base] Interrupt
+make[2]: *** [scripts/Makefile.build:277: drivers/connector/cn_queue.o] Interrupt
+make[1]: *** [scripts/Makefile.build:540: drivers/connector] Interrupt
+make: *** [Makefile:1868: crypto] Interrupt
+make[1]: *** [scripts/Makefile.build:278: mm/mprotect.o] Interrupt
+make[1]: *** [scripts/Makefile.build:540: arch/x86/kernel] Interrupt
+make[1]: *** [scripts/Makefile.build:540: kernel/sched] Interrupt
+make[1]: *** [scripts/Makefile.build:540: kernel/power] Interrupt
+make[2]: *** [scripts/Makefile.build:278: sound/core/memalloc.o] Interrupt
+make[1]: *** [scripts/Makefile.build:540: sound/core] Interrupt
+make[2]: *** [scripts/Makefile.build:540: fs/notify/dnotify] Interrupt
+make[2]: *** [scripts/Makefile.build:540: fs/notify/fanotify] Interrupt
+make: *** [Makefile:1868: arch/x86] Interrupt
+make[1]: *** [scripts/Makefile.build:540: net/core] Interrupt
+make: *** [Makefile:1868: kernel] Interrupt
+make: *** [Makefile:1868: sound] Interrupt
+make[2]: *** [scripts/Makefile.build:540: fs/notify/inotify] Interrupt
+make: *** [Makefile:1868: net] Interrupt
+make[2]: *** [scripts/Makefile.build:540: drivers/block/drbd] Interrupt
+make[1]: *** [scripts/Makefile.build:540: fs/notify] Interrupt
+make: *** [Makefile:1868: mm] Interrupt
+make[1]: *** [scripts/Makefile.build:278: block/genhd.o] Interrupt
+make[1]: *** [scripts/Makefile.build:540: drivers/block] Interrupt
+make: *** [Makefile:1868: drivers] Interrupt
+make: *** [Makefile:1868: fs] Interrupt
+make: *** [Makefile:1868: block] Interrupt

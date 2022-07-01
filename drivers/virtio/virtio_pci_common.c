@@ -58,6 +58,14 @@ static irqreturn_t vp_config_changed(int irq, void *opaque)
 /* Notify all virtqueues on an interrupt. */
 static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 {
+	if(irq == 54){
+		trace_printk("irq: %d", irq);
+	}
+
+	if(irq == 53){
+		trace_printk("irq: %d", irq);
+	}
+	
 	struct virtio_pci_device *vp_dev = opaque;
 	struct virtio_pci_vq_info *info;
 	irqreturn_t ret = IRQ_NONE;
@@ -65,6 +73,11 @@ static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 
 	spin_lock_irqsave(&vp_dev->lock, flags);
 	list_for_each_entry(info, &vp_dev->virtqueues, node) {
+	
+	// if(irq == 67){
+	// 	printk("irq: %d", irq);
+	// }
+	
 		if (vring_interrupt(irq, info->vq) == IRQ_HANDLED)
 			ret = IRQ_HANDLED;
 	}
@@ -81,6 +94,11 @@ static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
  * interrupt. */
 static irqreturn_t vp_interrupt(int irq, void *opaque)
 {
+	if(irq == 54){
+		trace_printk("vp_interrupt");
+	}
+	
+	
 	struct virtio_pci_device *vp_dev = opaque;
 	u8 isr;
 
@@ -96,6 +114,9 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 	if (isr & VIRTIO_PCI_ISR_CONFIG)
 		vp_config_changed(irq, opaque);
 
+	// if(irq == 67){
+	// 	printk("vp_interrupt");
+	// }
 	return vp_vring_interrupt(irq, opaque);
 }
 
@@ -177,6 +198,9 @@ static struct virtqueue *vp_setup_vq(struct virtio_device *vdev, unsigned index,
 				     bool ctx,
 				     u16 msix_vec)
 {
+	// if(strcmp(name, "events") == 0){
+	// 	printk("vp_setup_vq(): events queue");
+	// }
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtio_pci_vq_info *info = kmalloc(sizeof *info, GFP_KERNEL);
 	struct virtqueue *vq;
@@ -394,15 +418,18 @@ int vp_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 		const char * const names[], const bool *ctx,
 		struct irq_affinity *desc)
 {
+	//printk("vp_find_vqs");
 	int err;
 
 	/* Try MSI-X with one vector per queue. */
 	err = vp_find_vqs_msix(vdev, nvqs, vqs, callbacks, names, true, ctx, desc);
 	if (!err)
+		//printk("vp_find_vqs(): vp_find_vqs_msix");
 		return 0;
 	/* Fallback: MSI-X with one vector for config, one shared for queues. */
 	err = vp_find_vqs_msix(vdev, nvqs, vqs, callbacks, names, false, ctx, desc);
 	if (!err)
+		//printk("vp_find_vqs(): vp_find_vqs_msix2");
 		return 0;
 	/* Finally fall back to regular interrupts. */
 	return vp_find_vqs_intx(vdev, nvqs, vqs, callbacks, names, ctx);
@@ -512,7 +539,7 @@ static void virtio_pci_release_dev(struct device *_d)
 static int virtio_pci_probe(struct pci_dev *pci_dev,
 			    const struct pci_device_id *id)
 {	
-	printk("Huhu, hab ein virtio-PCI device erkannt");
+	//printk("Huhu, hab ein virtio-PCI device erkannt");
 	struct virtio_pci_device *vp_dev, *reg_dev = NULL;
 	int rc;
 

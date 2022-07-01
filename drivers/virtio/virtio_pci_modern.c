@@ -189,7 +189,10 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 				  bool ctx,
 				  u16 msix_vec)
 {
-
+	if(strcmp(name, "events") == 0){
+		printk("pci_modern: setup_vq");
+	}
+	
 	struct virtio_pci_modern_device *mdev = &vp_dev->mdev;
 	struct virtqueue *vq;
 	u16 num;
@@ -257,7 +260,7 @@ static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq;
 	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names, ctx, desc);
-	//printk("vp_modern_find_vqs(): names[1]: %s", names[1]);
+	printk("vp_modern_find_vqs(): vqs[0].name: %s", vqs[0]->name);
 	if (rc)
 		return rc;
 

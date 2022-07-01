@@ -46,7 +46,13 @@ int virtqueue_add_inbuf(struct virtqueue *vq,
 
 bool virtqueue_kick(struct virtqueue *vq);
 
+bool virtqueue_kick_no_ser(struct virtqueue *vq);
+
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
+
+void copy_to_shadow_vring(struct virtqueue *vq);
+
+bool virtqueue_kick_isr(struct virtqueue *vq);
 
 void virtqueue_disable_cb(struct virtqueue *vq);
 

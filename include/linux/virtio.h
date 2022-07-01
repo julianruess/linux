@@ -63,11 +63,20 @@ struct virtqueue * virtqueue_create_serialize(struct virtio_device *vdev, struct
 
 bool virtqueue_kick(struct virtqueue *vq);
 
+bool virtqueue_kick_no_ser(struct virtqueue *vq);
+
 bool virtqueue_kick_prepare(struct virtqueue *vq);
 
 bool virtqueue_notify(struct virtqueue *vq);
 
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
+
+void copy_to_shadow_vring(struct virtqueue *vq);
+
+bool virtqueue_kick_isr(struct virtqueue *vq);
+
+
+void copy_avail_idx_to_shadow(struct virtqueue*);
 
 void *virtqueue_get_buf_ctx(struct virtqueue *vq, unsigned int *len,
 			    void **ctx);

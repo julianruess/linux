@@ -81,6 +81,7 @@ struct virtqueue *vring_create_virtqueue(unsigned int index,
 /* Creates a virtqueue with a custom layout. */
 struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					struct vring vring,
+					struct vring shadow_vring,
 					struct virtio_device *vdev,
 					bool weak_barriers,
 					bool ctx,

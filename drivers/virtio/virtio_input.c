@@ -42,7 +42,7 @@ static void virtinput_queue_evtbuf(struct virtio_input *vi,
 static void virtinput_recv_events(struct virtqueue *vq)
 {
 	//printk("virtinput_recv_events");
-	trace_printk("CALLBACK recv_events");
+	trace_printk("CALLBACK recv_events\n");
 	//Heavily called
 	//printk("virtinputrecvevents");
 	//printk("CALLBACK: virtinput_recv_events: %s\n", vq->name);
@@ -73,7 +73,7 @@ static void virtinput_recv_events(struct virtqueue *vq)
 		//copy_avail_idx_to_shadow(vq);
 		//printk(KERN_ALERT "virtinput_recv_events: before kick\n");
 		
-		virtqueue_kick_isr(vq);
+		virtqueue_kick(vq);
 		//virtqueue_kick_isr(vq);
 		//printk("recv_events_kickcount: %d", kickcount);
 		kickcount++;

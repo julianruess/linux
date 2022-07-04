@@ -664,9 +664,12 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 			/* Note that we trust indirect descriptor
 			 * table since it use stream DMA mapping.
 			 */
+			
+			/* WTF scheint nötig dass Ausgaben kommen */
 			if(strcmp(_vq->name, "events") == 0 || strcmp(_vq->name, "status") == 0){
 			printk("Write in desc table at location %d", i);
 			}
+			/* END WTF */
 			i = virtqueue_add_desc_split(_vq, desc, i, addr,
 						     sg->length,
 						     VRING_DESC_F_NEXT |
@@ -743,10 +746,12 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
+	/*WTF*/
 	if(strcmp(_vq->name, "events") == 0){
 		printk("Virtqueue: events. In virtqueue_add_split(). vq->split.vring.avail->idx: %u", vq->split.vring.avail->idx);
 		printk("Virtqueue: events. In virtqueue_add_split(). vq->split.vring.used->idx: %u", vq->split.vring.used->idx);
 	}
+	/*END WTF*/
 
 	/* This is very unlikely, but theoretically possible.  Kick
 	 * just in case. */
@@ -2230,25 +2235,47 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 
 
 	//Descriptor table --> addr, flags, len, next
+	//vq->last_used_idx & (vq->split.vring.num - 1)
+	trace_printk("last_used_idx: %u\n", vvq->last_used_idx & (vvq->split.vring.num - 1));
+	trace_printk("shadow_used_idx: %u\n", vvq->split.shadow_vring.used->idx & (vvq->split.vring.num - 1));
 
-	for(j=0; j <  vvq->split.vring.num; j++){
+	u16 last_used_idx_copy = vvq->last_used_idx & (vvq->split.vring.num - 1);
+	u16 shadow_used_idx_copy = vvq->split.shadow_vring.used->idx & (vvq->split.vring.num - 1);
+	
+	if(shadow_used_idx_copy > last_used_idx_copy){
+		for(j = last_used_idx_copy; j < shadow_used_idx_copy; j++){
+				trace_printk("j: %d\n", j);
+				vvq->split.vring.desc[j].len = vvq->split.shadow_vring.desc[j].len;
+				vvq->split.vring.desc[j].next = vvq->split.shadow_vring.desc[j].next;
+				vvq->split.vring.desc[j].flags = vvq->split.shadow_vring.desc[j].flags;
 
-		vvq->split.vring.desc[j].len = vvq->split.shadow_vring.desc[j].len;
-		vvq->split.vring.desc[j].next = vvq->split.shadow_vring.desc[j].next;
-		vvq->split.vring.desc[j].flags = vvq->split.shadow_vring.desc[j].flags;
-
-		if(vvq->split.vring.desc[j].len != 0){
-			
-			//Von handle kopieren
-			void * handle = phys_to_virt(vvq->split.shadow_vring.desc[j].addr);
-			void * handle2 = phys_to_virt(vvq->split.vring.desc[j].addr);
-			memcpy(handle2, handle, vvq->split.shadow_vring.desc[j].len);
-			
-			
+				if(vvq->split.vring.desc[j].len != 0){
+				//Von handle kopieren
+				void * handle = phys_to_virt(vvq->split.shadow_vring.desc[j].addr);
+				void * handle2 = phys_to_virt(vvq->split.vring.desc[j].addr);
+				memcpy(handle2, handle, vvq->split.shadow_vring.desc[j].len);
+				}
 		}
 
-		
+
 	}
+	
+	// for(j=0; j <  vvq->split.vring.num; j++)
+
+	// 	vvq->split.vring.desc[j].len = vvq->split.shadow_vring.desc[j].len;
+	// 	vvq->split.vring.desc[j].next = vvq->split.shadow_vring.desc[j].next;
+	// 	vvq->split.vring.desc[j].flags = vvq->split.shadow_vring.desc[j].flags;
+
+	// 	if(vvq->split.vring.desc[j].len != 0){
+			
+	// 		//Von handle kopieren
+	// 		void * handle = phys_to_virt(vvq->split.shadow_vring.desc[j].addr);
+	// 		void * handle2 = phys_to_virt(vvq->split.vring.desc[j].addr);
+	// 		memcpy(handle2, handle, vvq->split.shadow_vring.desc[j].len);
+			
+	// 	}
+
+	// }
 
 	//Copy num
 	//vvq->split.vring.num = vvq->split.shadow_vring.num; 
@@ -2275,10 +2302,10 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 	// trace_printk("vvq_split__vring_avail: %p=%p\n", &(vvq->split.vring.avail), vvq->split.vring.avail);
 	// trace_printk("vvq_split_shadow_vring_used: %p=%p\n", &(vvq->split.shadow_vring.used), vvq->split.shadow_vring.used);
 
-	trace_printk("avail_idx: %d\n", vvq->split.vring.avail->idx);
-	trace_printk("shadow_avail_idx: %d\n", vvq->split.shadow_vring.avail->idx);
-	trace_printk("used_idx: %d\n", vvq->split.vring.used->idx);
-	trace_printk("shadow_used_idx: %d\n", vvq->split.shadow_vring.used->idx);
+	// trace_printk("avail_idx: %d\n", vvq->split.vring.avail->idx);
+	// trace_printk("shadow_avail_idx: %d\n", vvq->split.shadow_vring.avail->idx);
+	// trace_printk("used_idx: %d\n", vvq->split.vring.used->idx);
+	// trace_printk("shadow_used_idx: %d\n", vvq->split.shadow_vring.used->idx);
 	
 	// trace_printk("avail_ring[0]: %d\n", vvq->split.shadow_vring.avail->ring[0]);
 	// trace_printk("vvq->split.vring.used->idx: %d\n",vvq->split.vring.used->idx);

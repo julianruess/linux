@@ -59,11 +59,11 @@ static irqreturn_t vp_config_changed(int irq, void *opaque)
 static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 {
 	if(irq == 54){
-		trace_printk("irq: %d", irq);
+		trace_printk("irq: %d\n", irq);
 	}
 
 	if(irq == 53){
-		trace_printk("irq: %d", irq);
+		trace_printk("irq: %d\n", irq);
 	}
 	
 	struct virtio_pci_device *vp_dev = opaque;

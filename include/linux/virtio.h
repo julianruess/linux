@@ -73,6 +73,10 @@ void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
 
 void copy_to_shadow_vring(struct virtqueue *vq);
 
+void copy_to_shadow_vring_desc_i(struct virtqueue *vq, unsigned int i);
+
+void copy_to_shadow_vring_avail(struct virtqueue * vq);
+
 bool virtqueue_kick_isr(struct virtqueue *vq);
 
 

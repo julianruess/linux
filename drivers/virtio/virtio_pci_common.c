@@ -58,13 +58,13 @@ static irqreturn_t vp_config_changed(int irq, void *opaque)
 /* Notify all virtqueues on an interrupt. */
 static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 {
-	if(irq == 54){
-		trace_printk("irq: %d\n", irq);
-	}
+	// if(irq == 54){
+	// 	trace_printk("irq: %d\n", irq);
+	// }
 
-	if(irq == 53){
-		trace_printk("irq: %d\n", irq);
-	}
+	// if(irq == 53){
+	// 	trace_printk("irq: %d\n", irq);
+	// }
 	
 	struct virtio_pci_device *vp_dev = opaque;
 	struct virtio_pci_vq_info *info;
@@ -94,9 +94,9 @@ static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
  * interrupt. */
 static irqreturn_t vp_interrupt(int irq, void *opaque)
 {
-	if(irq == 54){
-		trace_printk("vp_interrupt");
-	}
+	// if(irq == 54){
+	// 	trace_printk("vp_interrupt");
+	// }
 	
 	
 	struct virtio_pci_device *vp_dev = opaque;

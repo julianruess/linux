@@ -29,8 +29,6 @@ static void virtinput_queue_evtbuf(struct virtio_input *vi,
 				   struct virtio_input_event *evtbuf)
 {
 	//Heavily called
-	//printk("while: virtinput_queue_evtbuf\n");
-	//printk("virtinput_queue_evtbuf: %s", vi->name);
 	struct scatterlist sg[1];
 
 	sg_init_one(sg, evtbuf, sizeof(*evtbuf));
@@ -57,7 +55,7 @@ static void virtinput_recv_events(struct virtqueue *vq)
 	if (vi->ready) {
 		//printk("Len1: %u", len);
 		while ((event = virtqueue_get_buf(vi->evt, &len)) != NULL) {
-			//printk("while: virtqueue_get_buf()\n");
+			trace_printk("virtqueue_get_buf()\n");
 			spin_unlock_irqrestore(&vi->lock, flags);
 			input_event(vi->idev,
 				    le16_to_cpu(event->type),

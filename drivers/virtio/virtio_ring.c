@@ -20,6 +20,7 @@
 
 static int shadow_on = 1;
 __virtio16 avail_idx_before_cpy = 0;
+__virtio16 used_idx_before_cpy = 0;
 int unmaponesplitcounter = 0;
 struct vring_serialize *vs;
 
@@ -2330,22 +2331,19 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 	// trace_printk("shadow_avail_idx (mod): %u\n", vvq->split.shadow_vring.avail->idx & (vvq->split.vring.num - 1));
 	// trace_printk("shadow_used_idx (mod): %u\n", vvq->split.shadow_vring.used->idx & (vvq->split.vring.num - 1));
 
-	u16 last_used_idx_copy = vvq->last_used_idx & (vvq->split.vring.num - 1);
-	u16 shadow_used_idx_copy = vvq->split.shadow_vring.used->idx & (vvq->split.vring.num - 1);
+	//u16 last_used_idx_copy = vvq->last_used_idx & (vvq->split.vring.num - 1);
+	//u16 shadow_used_idx_copy = vvq->split.shadow_vring.used->idx & (vvq->split.vring.num - 1);
 	
-	if(shadow_used_idx_copy > last_used_idx_copy){
+	if(vvq->split.shadow_vring.used->idx > used_idx_before_cpy){
 		
+		vvq->split.vring.used->flags = vvq->split.shadow_vring.used->flags;
 		
-		
-		int exp = 0;
-		for(j = last_used_idx_copy; j < shadow_used_idx_copy; j++){
-				//EXPERIMENT:
-				// vvq->split.shadow_vring.avail->ring[j] = exp;
-				// virtio_wmb(vvq->weak_barriers);
-				// vvq->split.shadow_vring.avail->idx = vvq->split.shadow_vring.avail->idx + 1;
-				// exp++;
-				//EXPERIMENT ENDE
+	
+		int newbufs = vvq->split.shadow_vring.used->idx - used_idx_before_cpy;
+
+		for(j=used_idx_before_cpy & (vvq->split.vring.num - 1); newbufs>0 ;j++){
 				
+				vvq->split.vring.used->ring[j] = vvq->split.shadow_vring.used->ring[j];
 				trace_printk("j: %d\n", j);
 				vvq->split.vring.desc[j].len = vvq->split.shadow_vring.desc[j].len;
 				vvq->split.vring.desc[j].next = vvq->split.shadow_vring.desc[j].next;
@@ -2357,9 +2355,13 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 				void * handle2 = phys_to_virt(vvq->split.vring.desc[j].addr);
 				memcpy(handle2, handle, vvq->split.shadow_vring.desc[j].len);
 				}
-				
+
+			newbufs--;	
 		}
 
+		virtio_wmb(vvq->weak_barriers);
+		vvq->split.vring.used->idx = vvq->split.shadow_vring.used->idx;
+		used_idx_before_cpy = vvq->split.shadow_vring.used->idx;
 
 	}
 	
@@ -2387,15 +2389,14 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 
 	//Used ring --> flags, idx, ring 
 
-	vvq->split.vring.used->flags = vvq->split.shadow_vring.used->flags;
-
-	for(j=0; j < vvq->split.vring.num; j++){
-		
-		vvq->split.vring.used->ring[j] = vvq->split.shadow_vring.used->ring[j]; 
-	}
 	
-	virtio_wmb(vvq->weak_barriers);
-	vvq->split.vring.used->idx = vvq->split.shadow_vring.used->idx;
+
+	// for(j=0; j < vvq->split.vring.num; j++){
+		
+		 
+	// }
+	
+	
 	//trace_printk("shadow_avail_idx: %d\n", vvq->split.shadow_vring.avail->idx);
 	
 	// trace_printk("vvq: %p\n", vvq);

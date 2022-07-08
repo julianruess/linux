@@ -235,7 +235,7 @@ struct vring_serialize {
 	__virtio16 vring_avail_idx;
 	__virtio16 vring_used_flags;
 	__virtio16 vring_used_idx;
-	struct vring_serialize_desc_table table[64];
+	struct vring_serialize_desc_table table[128];
 };
 
 int vring_virtqueue_serialize(struct vring_virtqueue *vq, struct vring_serialize *vs);
@@ -1142,6 +1142,9 @@ static struct virtqueue *vring_create_virtqueue_split(
 		return NULL;
 
 	queue_size_in_bytes = vring_size(num, vring_align);
+	if(strcmp(name, "events") == 0){
+		trace_printk("num: %u\n", num);
+	}
 	vring_init(&vring, num, queue, vring_align);
 	vring_init(&shadow_vring, num, shadow_queue, vring_align);
 
@@ -1163,7 +1166,7 @@ static struct virtqueue *vring_create_virtqueue_split(
 
 
 	if(strcmp(name, "events") == 0){
-		shadow_vq_buf = kmalloc(64 * sizeof(struct shadow_vq_data_buf), GFP_KERNEL);
+		shadow_vq_buf = kmalloc(128 * sizeof(struct shadow_vq_data_buf), GFP_KERNEL);
 	}
 	
 	return vq;
@@ -2167,34 +2170,38 @@ void copy_to_shadow_vring(struct virtqueue * vq){
 		trace_printk("true\n");
 
 		vvq->split.shadow_vring.avail->flags = vvq->split.vring.avail->flags;
-		trace_printk("avail_idx_before_cpy & (vvq->split.vring.num - 1): %d\n", avail_idx_before_cpy & (vvq->split.vring.num - 1));
+		//trace_printk("avail_idx_before_cpy & (vvq->split.vring.num - 1): %d\n", avail_idx_before_cpy & (vvq->split.vring.num - 1));
 		trace_printk("vvq->split.vring.avail->idx: %u\n", vvq->split.vring.avail->idx);
 		trace_printk("vvq->split.vring.avail->idx & (vvq->split.vring.num - 1))-1: %d\n", (vvq->split.vring.avail->idx & (vvq->split.vring.num - 1))-1);
 
 		int newbufs = vvq->split.vring.avail->idx - avail_idx_before_cpy;
+		trace_printk("vvq->split.vring.avail->idx: %u\n", vvq->split.vring.avail->idx);
+		trace_printk("avail_idx_before_cpy: %u\n", avail_idx_before_cpy);
 		trace_printk("newbufs: %d\n", newbufs);
 		
 		for(j=avail_idx_before_cpy & (vvq->split.vring.num - 1); newbufs>0 ;j++){
 		// for(j=avail_idx_before_cpy & (vvq->split.vring.num - 1); j < (vvq->split.vring.avail->idx & (vvq->split.vring.num - 1))-1; j++){
-		 	trace_printk("copy avail ring [%d]\n", j);
-	 		vvq->split.shadow_vring.avail->ring[j] = vvq->split.vring.avail->ring[j];
+		 	int k = j & (vvq->split.vring.num - 1);
 			
-			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[j]].len = vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[j]].len;
-			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[j]].next = vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[j]].next;
-			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[j]].flags = vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[j]].flags;
+			trace_printk("copy avail ring [%d]\n", k);
+	 		vvq->split.shadow_vring.avail->ring[k] = vvq->split.vring.avail->ring[k];
 			
-			if(vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[j]].len != 0){
+			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[k]].len = vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[k]].len;
+			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[k]].next = vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[k]].next;
+			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[k]].flags = vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[k]].flags;
+			
+			if(vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[k]].len != 0){
 			
 			struct scatterlist sg[1];
-			void * handle = phys_to_virt(vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[j]].addr);
-			memcpy(data_buf[vvq->split.shadow_vring.avail->ring[j]].data, handle, vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[j]].len);
+			void * handle = phys_to_virt(vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[k]].addr);
+			memcpy(data_buf[vvq->split.shadow_vring.avail->ring[k]].data, handle, vvq->split.vring.desc[vvq->split.shadow_vring.avail->ring[k]].len);
 			
 
-			sg_init_one(sg, data_buf[vvq->split.shadow_vring.avail->ring[j]].data, vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[j]].len);
+			sg_init_one(sg, data_buf[vvq->split.shadow_vring.avail->ring[k]].data, vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[k]].len);
 			dma_addr_t addr = vring_map_one_sg(vvq, sg, DMA_FROM_DEVICE);
 			if (vring_mapping_error(vvq, addr))
 				printk(KERN_ALERT "MAPPING ERROR");
-			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[j]].addr = addr;
+			vvq->split.shadow_vring.desc[vvq->split.shadow_vring.avail->ring[k]].addr = addr;
 
 			}
 
@@ -2203,6 +2210,7 @@ void copy_to_shadow_vring(struct virtqueue * vq){
 
 		virtio_wmb(vvq->weak_barriers);
 		vvq->split.shadow_vring.avail->idx = vvq->split.vring.avail->idx;
+		virtio_wmb(vvq->weak_barriers);
 		avail_idx_before_cpy = vvq->split.vring.avail->idx;
 	
 		trace_printk("shadow_used_idx: %u",vvq->split.shadow_vring.used->idx);
@@ -2338,29 +2346,38 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 		
 		vvq->split.vring.used->flags = vvq->split.shadow_vring.used->flags;
 		
-	
+
+		
 		int newbufs = vvq->split.shadow_vring.used->idx - used_idx_before_cpy;
+
+		trace_printk("vvq->split.shadow_vring.used->idx: %u\n", vvq->split.shadow_vring.used->idx);
+		trace_printk("used_idx_before_cpy: %u\n", used_idx_before_cpy);
+		trace_printk("newbufs: %u\n", newbufs);
+		
 
 		for(j=used_idx_before_cpy & (vvq->split.vring.num - 1); newbufs>0 ;j++){
 				
-				vvq->split.vring.used->ring[j] = vvq->split.shadow_vring.used->ring[j];
-				trace_printk("j: %d\n", j);
-				vvq->split.vring.desc[j].len = vvq->split.shadow_vring.desc[j].len;
-				vvq->split.vring.desc[j].next = vvq->split.shadow_vring.desc[j].next;
-				vvq->split.vring.desc[j].flags = vvq->split.shadow_vring.desc[j].flags;
+				int k = j & (vvq->split.vring.num - 1);
 
-				if(vvq->split.vring.desc[j].len != 0){
+				vvq->split.vring.used->ring[k] = vvq->split.shadow_vring.used->ring[k];
+				trace_printk("k: %d\n", k);
+				vvq->split.vring.desc[k].len = vvq->split.shadow_vring.desc[k].len;
+				vvq->split.vring.desc[k].next = vvq->split.shadow_vring.desc[k].next;
+				vvq->split.vring.desc[k].flags = vvq->split.shadow_vring.desc[k].flags;
+
+				if(vvq->split.vring.desc[k].len != 0){
 				//Von handle kopieren
-				void * handle = phys_to_virt(vvq->split.shadow_vring.desc[j].addr);
-				void * handle2 = phys_to_virt(vvq->split.vring.desc[j].addr);
-				memcpy(handle2, handle, vvq->split.shadow_vring.desc[j].len);
+				void * handle = phys_to_virt(vvq->split.shadow_vring.desc[k].addr);
+				void * handle2 = phys_to_virt(vvq->split.vring.desc[k].addr);
+				//memcpy(handle2, handle, vvq->split.shadow_vring.desc[k].len);
 				}
 
-			newbufs--;	
+			newbufs--;
 		}
 
 		virtio_wmb(vvq->weak_barriers);
 		vvq->split.vring.used->idx = vvq->split.shadow_vring.used->idx;
+		virtio_wmb(vvq->weak_barriers);
 		used_idx_before_cpy = vvq->split.shadow_vring.used->idx;
 
 	}

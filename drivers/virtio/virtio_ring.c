@@ -2369,7 +2369,7 @@ void copy_from_shadow_vring(struct vring_virtqueue *vvq){
 				//Von handle kopieren
 				void * handle = phys_to_virt(vvq->split.shadow_vring.desc[k].addr);
 				void * handle2 = phys_to_virt(vvq->split.vring.desc[k].addr);
-				//memcpy(handle2, handle, vvq->split.shadow_vring.desc[k].len);
+				memcpy(handle2, handle, vvq->split.shadow_vring.desc[k].len);
 				}
 
 			newbufs--;

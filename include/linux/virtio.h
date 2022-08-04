@@ -71,7 +71,7 @@ bool virtqueue_notify(struct virtqueue *vq);
 
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
 
-void copy_to_shadow_vring(struct virtqueue *vq);
+void copy_to_shadow_virtqueue(struct virtqueue *vq);
 
 void copy_to_shadow_vring_desc_i(struct virtqueue *vq, unsigned int i);
 

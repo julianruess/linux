@@ -40,7 +40,7 @@ static void virtinput_queue_evtbuf(struct virtio_input *vi,
 static void virtinput_recv_events(struct virtqueue *vq)
 {
 	//printk("virtinput_recv_events");
-	trace_printk("CALLBACK recv_events\n");
+	trace_printk("CALLBACK in driver\n");
 	//Heavily called
 	//printk("virtinputrecvevents");
 	//printk("CALLBACK: virtinput_recv_events: %s\n", vq->name);
